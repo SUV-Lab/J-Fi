@@ -1,0 +1,4 @@
+[submodule "src/px4_msgs"]
+	path = src/px4_msgs
+	url = https://github.com/SUV-Lab/px4_msgs.git
+	branch = v1.14/swarmrover
