@@ -3,6 +3,14 @@
 
 SerialSender::SerialSender() : Node("serial_sender")
 {
+    serial_fd_ = open("/dev/ttyUSB0", O_RDWR | O_NOCTTY | O_SYNC);
+    if (serial_fd_ < 0)
+    {
+        RCLCPP_ERROR(this->get_logger(), "Failed to open serial port");
+        rclcpp::shutdown();
+    }
+    configure_serial_port();
+
     const std::string topic_prefix_out = "vehicle1/fmu/out/";
 
     rmw_qos_profile_t qos_profile = rmw_qos_profile_sensor_data;
@@ -17,61 +25,90 @@ SerialSender::SerialSender() : Node("serial_sender")
 
 SerialSender::~SerialSender()
 {
-    // if (serial_port_.isOpen())
-    // {
-    //     serial_port_.close();
-    // }
+    if (serial_fd_ >= 0)
+        close(serial_fd_);
 }
 
-void SerialSender::trajectory_callback(const TrajectorySetpoint::SharedPtr msg)
+void SerialSender::configure_serial_port()
 {
-    trajectory_data_ = msg;
-    send_serial_data();
-}
-
-void SerialSender::vehicle_status_callback(const VehicleStatus::SharedPtr msg)
-{
-    vehicle_status_data_ = msg;
-    send_serial_data();
-}
-
-std::vector<uint8_t> SerialSender::serialize_data()
-{
-    std::vector<uint8_t> serialized_data;
-
-    if (trajectory_data_ && vehicle_status_data_)
+    struct termios tty;
+    if (tcgetattr(serial_fd_, &tty) != 0)
     {
-        try
-        {
-            // TODO: Sirialize_data using MAVLINK
-
-            // trajectory_data_, vehicle_status_data_
-        }
-        catch (const std::exception &e)
-        {
-            RCLCPP_ERROR(this->get_logger(), "Error serializing data: %s", e.what());
-        }
+        RCLCPP_ERROR(this->get_logger(), "Failed to get serial port attributes");
+        rclcpp::shutdown();
     }
 
-    return serialized_data;
+    cfsetospeed(&tty, B115200);
+    cfsetispeed(&tty, B115200);
+    tty.c_cflag = (tty.c_cflag & ~CSIZE) | CS8;
+    tty.c_cflag &= ~PARENB;
+    tty.c_cflag &= ~CSTOPB;
+    tty.c_cflag |= CREAD | CLOCAL;
+    tty.c_iflag = IGNPAR;
+    tty.c_oflag = 0;
+    tty.c_lflag = 0;
+
+    if (tcsetattr(serial_fd_, TCSANOW, &tty) != 0)
+    {
+        RCLCPP_ERROR(this->get_logger(), "Failed to set serial port attributes");
+        rclcpp::shutdown();
+    }
 }
 
-void SerialSender::send_serial_data()
+void SerialSender::vehicle_status_callback(const VehicleStatus::SharedPtr dds_msg)
 {
-    auto serialized_data = serialize_data();
+    mavlink_message_t mav_msg;
 
-    if (!serialized_data.empty())
-    {
-        try
-        {
-            // serial_port_.write(serialized_data);
-            RCLCPP_INFO(this->get_logger(), "Sent data over serial");
-        }
-        catch (const std::exception &e)
-        {
-            RCLCPP_ERROR(this->get_logger(), "Error sending serial data: %s", e.what());
-        }
-    }
+    VehicleStatus vehicle_status{};
+    vehicle_status = *dds_msg;
+
+    mavlink_msg_vehicle_status_pack(
+        1,   // System ID
+        200, // Component ID
+        &mav_msg,
+        vehicle_status.timestamp,
+        vehicle_status.armed_time,
+        vehicle_status.arming_state,
+        vehicle_status.nav_state);
+
+    send_serial_data(mav_msg);
+}
+
+void SerialSender::trajectory_callback(const TrajectorySetpoint::SharedPtr dds_msg)
+{
+    mavlink_message_t mav_msg;
+
+    TrajectorySetpoint trajectory_setpoint{};
+    trajectory_setpoint = *dds_msg;
+
+    mavlink_msg_trajectory_setpoint_pack(
+        1,   // System ID
+        200, // Component ID
+        &mav_msg,
+        trajectory_setpoint.timestamp,
+        trajectory_setpoint.position[0],
+        trajectory_setpoint.position[1],
+        trajectory_setpoint.position[2],
+        trajectory_setpoint.velocity[0],
+        trajectory_setpoint.velocity[1],
+        trajectory_setpoint.velocity[2],
+        trajectory_setpoint.acceleration[0],
+        trajectory_setpoint.acceleration[1],
+        trajectory_setpoint.acceleration[2],
+        trajectory_setpoint.jerk[0],
+        trajectory_setpoint.jerk[1],
+        trajectory_setpoint.jerk[2],
+        trajectory_setpoint.yaw,
+        trajectory_setpoint.yawspeed);
+
+    send_serial_data(mav_msg);
+}
+
+void SerialSender::send_serial_data(mavlink_message_t &msg)
+{
+    uint8_t buffer[MAVLINK_MAX_PACKET_LEN];
+    int len = mavlink_msg_to_send_buffer(buffer, &msg);
+    write(serial_fd_, buffer, len);
 }
 
 int main(int argc, char **argv)

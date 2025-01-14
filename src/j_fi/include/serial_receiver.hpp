@@ -4,7 +4,10 @@
 #include <rclcpp/rclcpp.hpp>
 #include <px4_msgs/msg/trajectory_setpoint.hpp>
 #include <px4_msgs/msg/vehicle_status.hpp>
-// #include <serial/serial.h>
+#include "mavlink/rover/mavlink.h"
+#include <fcntl.h>
+#include <unistd.h>
+#include <termios.h>
 #include <vector>
 #include <chrono>
 
@@ -19,16 +22,14 @@ public:
     ~SerialReceiver();
 
 private:
+    int serial_fd_;
+    rclcpp::TimerBase::SharedPtr timer_;
+
+    void configure_serial_port();
     void receive_serial_data();
-    void deserialize_data(const std::vector<uint8_t> &data);
-    void timer_cb();
-    void publish_vehicle_status();
-    void publish_trajectory_setpoint();
 
     rclcpp::Publisher<VehicleStatus>::SharedPtr vehicle_status_pub_;
     rclcpp::Publisher<TrajectorySetpoint>::SharedPtr trajectory_setpoint_pub_;
-
-    // serial::Serial serial_port_;
 
     TrajectorySetpoint::SharedPtr trajectory_data_;
     VehicleStatus::SharedPtr vehicle_status_data_;
