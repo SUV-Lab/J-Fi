@@ -9,6 +9,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <termios.h>
+#include <string>
 
 using px4_msgs::msg::TrajectorySetpoint;
 using px4_msgs::msg::VehicleStatus;
@@ -21,6 +22,7 @@ public:
 
 private:
     int serial_fd_;
+
     void configure_serial_port();
     void trajectory_callback(const TrajectorySetpoint::SharedPtr msg);
     void vehicle_status_callback(const VehicleStatus::SharedPtr msg);

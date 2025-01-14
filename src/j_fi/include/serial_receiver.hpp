@@ -8,7 +8,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <termios.h>
-#include <vector>
+#include <string>
 #include <chrono>
 
 using px4_msgs::msg::TrajectorySetpoint;

@@ -3,10 +3,14 @@
 
 SerialSender::SerialSender() : Node("serial_sender")
 {
-    serial_fd_ = open("/dev/ttyUSB0", O_RDWR | O_NOCTTY | O_SYNC);
+    std::string port_name;
+    this->declare_parameter<std::string>("port", "/dev/ttyUSB0");
+    this->get_parameter("port", port_name);
+
+    serial_fd_ = open(port_name.c_str(), O_RDWR | O_NOCTTY | O_SYNC);
     if (serial_fd_ < 0)
     {
-        RCLCPP_ERROR(this->get_logger(), "Failed to open serial port");
+        RCLCPP_ERROR(this->get_logger(), "Failed to open serial port: %s", port_name.c_str());
         rclcpp::shutdown();
     }
     configure_serial_port();
