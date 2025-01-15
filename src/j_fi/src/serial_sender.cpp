@@ -3,6 +3,12 @@
 
 SerialSender::SerialSender() : Node("serial_sender")
 {
+    int rover_id;
+    this->declare_parameter<int>("rover_id", 1);
+    this->get_parameter("rover_id", rover_id);
+
+    std::string sid = std::to_string(rover_id);
+
     std::string port_name;
     this->declare_parameter<std::string>("port", "/dev/ttyUSB0");
     this->get_parameter("port", port_name);
@@ -15,13 +21,13 @@ SerialSender::SerialSender() : Node("serial_sender")
     }
     configure_serial_port();
 
-    const std::string topic_prefix_out = "vehicle1/fmu/out/";
+    const std::string topic_prefix_out = "vehicle" + sid + "/fmu/out/";
 
     rmw_qos_profile_t qos_profile = rmw_qos_profile_sensor_data;
     auto qos = rclcpp::QoS(rclcpp::QoSInitialization(qos_profile.history, 5), qos_profile);
 
     trajectory_sub_ = this->create_subscription<TrajectorySetpoint>(
-        topic_prefix_out + "target_position", qos, std::bind(&SerialSender::trajectory_callback, this, std::placeholders::_1));
+        topic_prefix_out + "trajectory_setpoint", qos, std::bind(&SerialSender::trajectory_callback, this, std::placeholders::_1));
 
     vehicle_status_sub_ = this->create_subscription<VehicleStatus>(
         topic_prefix_out + "vehicle_status", qos, std::bind(&SerialSender::vehicle_status_callback, this, std::placeholders::_1));

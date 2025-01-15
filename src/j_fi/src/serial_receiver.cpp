@@ -3,6 +3,16 @@
 
 SerialReceiver::SerialReceiver() : Node("serial_receiver")
 {
+    int rover_id;
+    this->declare_parameter<int>("rover_id", 1);
+    this->get_parameter("rover_id", rover_id);
+    std::string sid = std::to_string(rover_id);
+
+    int leader_id;
+    this->declare_parameter<int>("leader_id", 1);
+    this->get_parameter("leader_id", leader_id);
+    std::string leader_sid = std::to_string(leader_id);
+
     std::string port_name;
     this->declare_parameter<std::string>("port", "/dev/ttyUSB0");
     this->get_parameter("port", port_name);
@@ -15,13 +25,13 @@ SerialReceiver::SerialReceiver() : Node("serial_receiver")
     }
     configure_serial_port();
 
-    const std::string topic_prefix_out = "leader/";
+    const std::string leader_to_follower_prefix = "vehicle" + leader_sid + "/to/" + "vehicle" + sid + "/";
 
     rmw_qos_profile_t qos_profile = rmw_qos_profile_sensor_data;
     auto qos = rclcpp::QoS(rclcpp::QoSInitialization(qos_profile.history, 5), qos_profile);
 
-    trajectory_setpoint_pub_ = this->create_publisher<TrajectorySetpoint>(topic_prefix_out + "target_position", qos);
-    vehicle_status_pub_ = this->create_publisher<VehicleStatus>(topic_prefix_out + "vehicle_status", qos);
+    trajectory_setpoint_pub_ = this->create_publisher<TrajectorySetpoint>(leader_to_follower_prefix + "target_position", qos);
+    vehicle_status_pub_ = this->create_publisher<VehicleStatus>(leader_to_follower_prefix + "target_status", qos);
 
     // Periodic timer to read serial data
     timer_ = this->create_wall_timer(100ms, std::bind(&SerialReceiver::receive_serial_data, this));
