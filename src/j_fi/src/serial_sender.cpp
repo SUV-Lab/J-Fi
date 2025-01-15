@@ -21,7 +21,7 @@ SerialSender::SerialSender() : Node("serial_sender")
     auto qos = rclcpp::QoS(rclcpp::QoSInitialization(qos_profile.history, 5), qos_profile);
 
     trajectory_sub_ = this->create_subscription<TrajectorySetpoint>(
-        topic_prefix_out + "trajectory_setpoint", qos, std::bind(&SerialSender::trajectory_callback, this, std::placeholders::_1));
+        topic_prefix_out + "target_position", qos, std::bind(&SerialSender::trajectory_callback, this, std::placeholders::_1));
 
     vehicle_status_sub_ = this->create_subscription<VehicleStatus>(
         topic_prefix_out + "vehicle_status", qos, std::bind(&SerialSender::vehicle_status_callback, this, std::placeholders::_1));
