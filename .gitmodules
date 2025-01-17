@@ -2,3 +2,6 @@
 	path = src/px4_msgs
 	url = https://github.com/SUV-Lab/px4_msgs.git
 	branch = v1.14/swarmrover
+[submodule "src/jfi_transport/mavlink"]
+	path = src/jfi_transport/mavlink
+	url = https://github.com/SUV-Lab/mavlink.git
