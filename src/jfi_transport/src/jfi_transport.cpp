@@ -1,4 +1,6 @@
 #include "serial_comm_node.hpp"
+#include "rclcpp/rclcpp.hpp"
+
 
 SerialCommNode::SerialCommNode()
     : Node("serial_comm_node"),
@@ -81,15 +83,16 @@ void SerialCommNode::send_loop() {
     uint8_t buffer[MAVLINK_MAX_PACKET_LEN];
 
     while (running_) {
-        // Prepare a sample MAVLink message
-        float data[63] = {0, 1, 2.0, 3.4, -5, -6.7};
-        mavlink_msg_custom_message_pack(
+        // Create a heartbeat message
+        mavlink_msg_heartbeat_pack(
             1,                  // System ID
             200,                // Component ID
             &msg,               // Pointer to mavlink_message_t
-            42,                 // Target ID
-            99,                 // Message ID
-            data                // Data array
+            MAV_TYPE_QUADROTOR,
+            MAV_AUTOPILOT_PX4,
+            MAV_MODE_GUIDED_ARMED,
+            0,
+            MAV_STATE_ACTIVE
         );
 
         // Send the message

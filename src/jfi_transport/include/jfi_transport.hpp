@@ -7,7 +7,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <termios.h>
-#include "mavlink/common/mavlink.h"
+#include <mavlink/common/mavlink.h>
 
 class SerialCommNode : public rclcpp::Node {
 public:
