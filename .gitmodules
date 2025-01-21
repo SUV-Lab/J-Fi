@@ -4,4 +4,4 @@
 	branch = v1.14/swarmrover
 [submodule "src/jfi_transport/mavlink"]
 	path = src/jfi_transport/mavlink
-	url = https://github.com/SUV-Lab/mavlink.git
+	url = https://github.com/mavlink/mavlink.git
