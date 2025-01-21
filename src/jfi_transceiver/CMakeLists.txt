@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(jfi_transport)
+project(jfi_transceiver)
 
 include(ExternalProject)
 ExternalProject_Add(
@@ -30,12 +30,13 @@ include_directories(include)
 # Add compiler options for disable Suppress Warnings, This code prevents the build from failing due to warnings about alignment issues caused by auto-generated mavlink packed structures.
 add_compile_options(-Wno-pedantic -Wno-address-of-packed-member)
 
-add_executable(jfi_transport src/jfi_transport.cpp)
-add_dependencies(jfi_transport mavlink)
-ament_target_dependencies(jfi_transport rclcpp std_msgs px4_msgs)
+add_executable(jfi_transceiver src/jfi_transceiver.cpp)
+add_dependencies(jfi_transceiver mavlink)
+ament_target_dependencies(jfi_transceiver rclcpp std_msgs px4_msgs)
 
 install(TARGETS
-  jfi_transport
+  jfi_transceiver
+
   DESTINATION lib/${PROJECT_NAME})
 
 install(

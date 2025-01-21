@@ -1,18 +1,19 @@
-#ifndef SERIAL_COMM_NODE_HPP
-#define SERIAL_COMM_NODE_HPP
+#ifndef JFI_TRANSCEIVER_HPP
+#define JFI_TRANSCEIVER_HPP
 
 #include <rclcpp/rclcpp.hpp>
-#include <thread>
-#include <atomic>
 #include <fcntl.h>
 #include <unistd.h>
 #include <termios.h>
+#include <thread>
+#include <atomic>
 #include <mavlink/common/mavlink.h>
 
-class SerialCommNode : public rclcpp::Node {
+class JFiTransceiverNode : public rclcpp::Node
+{
 public:
-    SerialCommNode();
-    ~SerialCommNode();
+    JFiTransceiverNode();
+    ~JFiTransceiverNode();
 
 private:
     int serial_fd_;
@@ -25,4 +26,4 @@ private:
     void send_loop();
 };
 
-#endif // SERIAL_COMM_NODE_HPP
+#endif // JFI_TRANSCEIVER_HPP

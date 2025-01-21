@@ -1,10 +1,9 @@
-#include "serial_comm_node.hpp"
+#include "jfi_transceiver.hpp"
 #include "rclcpp/rclcpp.hpp"
 
 
-SerialCommNode::SerialCommNode()
-    : Node("serial_comm_node"),
-      running_(true) {
+JFiTransceiverNode::JFiTransceiverNode() : Node("jfi_transceiver_node"),  running_(true)
+{
     // Open the serial port
     serial_fd_ = open("/dev/ttyUSB0", O_RDWR | O_NOCTTY | O_SYNC);
     if (serial_fd_ < 0) {
@@ -14,11 +13,11 @@ SerialCommNode::SerialCommNode()
     configure_serial_port();
 
     // Start threads for sending and receiving
-    receive_thread_ = std::thread(&SerialCommNode::receive_loop, this);
-    send_thread_ = std::thread(&SerialCommNode::send_loop, this);
+    receive_thread_ = std::thread(&JFiTransceiverNode::receive_loop, this);
+    send_thread_ = std::thread(&JFiTransceiverNode::send_loop, this);
 }
 
-SerialCommNode::~SerialCommNode() {
+JFiTransceiverNode::~JFiTransceiverNode() {
     // Stop the threads
     running_ = false;
     if (receive_thread_.joinable()) {
@@ -33,7 +32,7 @@ SerialCommNode::~SerialCommNode() {
     }
 }
 
-void SerialCommNode::configure_serial_port() {
+void JFiTransceiverNode::configure_serial_port() {
     struct termios tty;
 
     if (tcgetattr(serial_fd_, &tty) != 0) {
@@ -58,7 +57,7 @@ void SerialCommNode::configure_serial_port() {
     }
 }
 
-void SerialCommNode::receive_loop() {
+void JFiTransceiverNode::receive_loop() {
     RCLCPP_INFO(this->get_logger(), "Receive thread started.");
     mavlink_message_t msg;
     mavlink_status_t status;
@@ -69,15 +68,14 @@ void SerialCommNode::receive_loop() {
         if (read(serial_fd_, &byte, 1) > 0) {
             if (mavlink_parse_char(MAVLINK_COMM_0, byte, &msg, &status)) {
                 // Log received message
-                RCLCPP_INFO(this->get_logger(), "Received MAVLink Message: ID = %d, SEQ = %d",
-                            msg.msgid, msg.seq);
+                RCLCPP_INFO(this->get_logger(), "Received MAVLink Message: ID = %d, SEQ = %d", msg.msgid, msg.seq);
             }
         }
     }
     RCLCPP_INFO(this->get_logger(), "Receive thread stopped.");
 }
 
-void SerialCommNode::send_loop() {
+void JFiTransceiverNode::send_loop() {
     RCLCPP_INFO(this->get_logger(), "Send thread started.");
     mavlink_message_t msg;
     uint8_t buffer[MAVLINK_MAX_PACKET_LEN];
@@ -98,7 +96,7 @@ void SerialCommNode::send_loop() {
         // Send the message
         int len = mavlink_msg_to_send_buffer(buffer, &msg);
         if (write(serial_fd_, buffer, len) > 0) {
-            RCLCPP_INFO(this->get_logger(), "Sent MAVLink Message: ID = %d", msg.msgid);
+            RCLCPP_INFO(this->get_logger(), "Sent MAVLink Message");
         } else {
             RCLCPP_ERROR(this->get_logger(), "Failed to send MAVLink message");
         }
@@ -111,7 +109,7 @@ void SerialCommNode::send_loop() {
 
 int main(int argc, char **argv) {
     rclcpp::init(argc, argv);
-    auto node = std::make_shared<SerialCommNode>();
+    auto node = std::make_shared<JFiTransceiverNode>();
     rclcpp::spin(node);
     rclcpp::shutdown();
     return 0;
