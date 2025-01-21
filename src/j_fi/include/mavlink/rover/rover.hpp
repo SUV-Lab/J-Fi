@@ -21,7 +21,7 @@ namespace rover {
 /**
  * Array of msg_entry needed for @p mavlink_parse_char() (through @p mavlink_get_msg_entry())
  */
-constexpr std::array<mavlink_msg_entry_t, 2> MESSAGE_ENTRIES {{ {190, 202, 60, 60, 0, 0, 0}, {191, 111, 18, 18, 0, 0, 0} }};
+constexpr std::array<mavlink_msg_entry_t, 2> MESSAGE_ENTRIES {{ {190, 249, 61, 61, 0, 0, 0}, {191, 65, 19, 19, 0, 0, 0} }};
 
 //! MAVLINK VERSION
 constexpr auto MAVLINK_VERSION = 3;

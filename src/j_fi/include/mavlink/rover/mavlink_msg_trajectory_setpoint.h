@@ -20,15 +20,16 @@ typedef struct __mavlink_trajectory_setpoint_t {
  float jerk_z; /*<  target jerk z*/
  float yaw; /*<  target yaw*/
  float yawspeed; /*<  target yawspeed*/
+ uint8_t seq_debug; /*<  mavlink sequence*/
 } mavlink_trajectory_setpoint_t;
 
-#define MAVLINK_MSG_ID_TRAJECTORY_SETPOINT_LEN 60
-#define MAVLINK_MSG_ID_TRAJECTORY_SETPOINT_MIN_LEN 60
-#define MAVLINK_MSG_ID_190_LEN 60
-#define MAVLINK_MSG_ID_190_MIN_LEN 60
+#define MAVLINK_MSG_ID_TRAJECTORY_SETPOINT_LEN 61
+#define MAVLINK_MSG_ID_TRAJECTORY_SETPOINT_MIN_LEN 61
+#define MAVLINK_MSG_ID_190_LEN 61
+#define MAVLINK_MSG_ID_190_MIN_LEN 61
 
-#define MAVLINK_MSG_ID_TRAJECTORY_SETPOINT_CRC 202
-#define MAVLINK_MSG_ID_190_CRC 202
+#define MAVLINK_MSG_ID_TRAJECTORY_SETPOINT_CRC 249
+#define MAVLINK_MSG_ID_190_CRC 249
 
 
 
@@ -36,7 +37,7 @@ typedef struct __mavlink_trajectory_setpoint_t {
 #define MAVLINK_MESSAGE_INFO_TRAJECTORY_SETPOINT { \
     190, \
     "TRAJECTORY_SETPOINT", \
-    15, \
+    16, \
     {  { "timestamp", NULL, MAVLINK_TYPE_UINT32_T, 0, 0, offsetof(mavlink_trajectory_setpoint_t, timestamp) }, \
          { "pos_x", NULL, MAVLINK_TYPE_FLOAT, 0, 4, offsetof(mavlink_trajectory_setpoint_t, pos_x) }, \
          { "pos_y", NULL, MAVLINK_TYPE_FLOAT, 0, 8, offsetof(mavlink_trajectory_setpoint_t, pos_y) }, \
@@ -52,12 +53,13 @@ typedef struct __mavlink_trajectory_setpoint_t {
          { "jerk_z", NULL, MAVLINK_TYPE_FLOAT, 0, 48, offsetof(mavlink_trajectory_setpoint_t, jerk_z) }, \
          { "yaw", NULL, MAVLINK_TYPE_FLOAT, 0, 52, offsetof(mavlink_trajectory_setpoint_t, yaw) }, \
          { "yawspeed", NULL, MAVLINK_TYPE_FLOAT, 0, 56, offsetof(mavlink_trajectory_setpoint_t, yawspeed) }, \
+         { "seq_debug", NULL, MAVLINK_TYPE_UINT8_T, 0, 60, offsetof(mavlink_trajectory_setpoint_t, seq_debug) }, \
          } \
 }
 #else
 #define MAVLINK_MESSAGE_INFO_TRAJECTORY_SETPOINT { \
     "TRAJECTORY_SETPOINT", \
-    15, \
+    16, \
     {  { "timestamp", NULL, MAVLINK_TYPE_UINT32_T, 0, 0, offsetof(mavlink_trajectory_setpoint_t, timestamp) }, \
          { "pos_x", NULL, MAVLINK_TYPE_FLOAT, 0, 4, offsetof(mavlink_trajectory_setpoint_t, pos_x) }, \
          { "pos_y", NULL, MAVLINK_TYPE_FLOAT, 0, 8, offsetof(mavlink_trajectory_setpoint_t, pos_y) }, \
@@ -73,6 +75,7 @@ typedef struct __mavlink_trajectory_setpoint_t {
          { "jerk_z", NULL, MAVLINK_TYPE_FLOAT, 0, 48, offsetof(mavlink_trajectory_setpoint_t, jerk_z) }, \
          { "yaw", NULL, MAVLINK_TYPE_FLOAT, 0, 52, offsetof(mavlink_trajectory_setpoint_t, yaw) }, \
          { "yawspeed", NULL, MAVLINK_TYPE_FLOAT, 0, 56, offsetof(mavlink_trajectory_setpoint_t, yawspeed) }, \
+         { "seq_debug", NULL, MAVLINK_TYPE_UINT8_T, 0, 60, offsetof(mavlink_trajectory_setpoint_t, seq_debug) }, \
          } \
 }
 #endif
@@ -98,10 +101,11 @@ typedef struct __mavlink_trajectory_setpoint_t {
  * @param jerk_z  target jerk z
  * @param yaw  target yaw
  * @param yawspeed  target yawspeed
+ * @param seq_debug  mavlink sequence
  * @return length of the message in bytes (excluding serial stream start sign)
  */
 static inline uint16_t mavlink_msg_trajectory_setpoint_pack(uint8_t system_id, uint8_t component_id, mavlink_message_t* msg,
-                               uint32_t timestamp, float pos_x, float pos_y, float pos_z, float vel_x, float vel_y, float vel_z, float acc_x, float acc_y, float acc_z, float jerk_x, float jerk_y, float jerk_z, float yaw, float yawspeed)
+                               uint32_t timestamp, float pos_x, float pos_y, float pos_z, float vel_x, float vel_y, float vel_z, float acc_x, float acc_y, float acc_z, float jerk_x, float jerk_y, float jerk_z, float yaw, float yawspeed, uint8_t seq_debug)
 {
 #if MAVLINK_NEED_BYTE_SWAP || !MAVLINK_ALIGNED_FIELDS
     char buf[MAVLINK_MSG_ID_TRAJECTORY_SETPOINT_LEN];
@@ -120,6 +124,7 @@ static inline uint16_t mavlink_msg_trajectory_setpoint_pack(uint8_t system_id, u
     _mav_put_float(buf, 48, jerk_z);
     _mav_put_float(buf, 52, yaw);
     _mav_put_float(buf, 56, yawspeed);
+    _mav_put_uint8_t(buf, 60, seq_debug);
 
         memcpy(_MAV_PAYLOAD_NON_CONST(msg), buf, MAVLINK_MSG_ID_TRAJECTORY_SETPOINT_LEN);
 #else
@@ -139,6 +144,7 @@ static inline uint16_t mavlink_msg_trajectory_setpoint_pack(uint8_t system_id, u
     packet.jerk_z = jerk_z;
     packet.yaw = yaw;
     packet.yawspeed = yawspeed;
+    packet.seq_debug = seq_debug;
 
         memcpy(_MAV_PAYLOAD_NON_CONST(msg), &packet, MAVLINK_MSG_ID_TRAJECTORY_SETPOINT_LEN);
 #endif
@@ -168,11 +174,12 @@ static inline uint16_t mavlink_msg_trajectory_setpoint_pack(uint8_t system_id, u
  * @param jerk_z  target jerk z
  * @param yaw  target yaw
  * @param yawspeed  target yawspeed
+ * @param seq_debug  mavlink sequence
  * @return length of the message in bytes (excluding serial stream start sign)
  */
 static inline uint16_t mavlink_msg_trajectory_setpoint_pack_chan(uint8_t system_id, uint8_t component_id, uint8_t chan,
                                mavlink_message_t* msg,
-                                   uint32_t timestamp,float pos_x,float pos_y,float pos_z,float vel_x,float vel_y,float vel_z,float acc_x,float acc_y,float acc_z,float jerk_x,float jerk_y,float jerk_z,float yaw,float yawspeed)
+                                   uint32_t timestamp,float pos_x,float pos_y,float pos_z,float vel_x,float vel_y,float vel_z,float acc_x,float acc_y,float acc_z,float jerk_x,float jerk_y,float jerk_z,float yaw,float yawspeed,uint8_t seq_debug)
 {
 #if MAVLINK_NEED_BYTE_SWAP || !MAVLINK_ALIGNED_FIELDS
     char buf[MAVLINK_MSG_ID_TRAJECTORY_SETPOINT_LEN];
@@ -191,6 +198,7 @@ static inline uint16_t mavlink_msg_trajectory_setpoint_pack_chan(uint8_t system_
     _mav_put_float(buf, 48, jerk_z);
     _mav_put_float(buf, 52, yaw);
     _mav_put_float(buf, 56, yawspeed);
+    _mav_put_uint8_t(buf, 60, seq_debug);
 
         memcpy(_MAV_PAYLOAD_NON_CONST(msg), buf, MAVLINK_MSG_ID_TRAJECTORY_SETPOINT_LEN);
 #else
@@ -210,6 +218,7 @@ static inline uint16_t mavlink_msg_trajectory_setpoint_pack_chan(uint8_t system_
     packet.jerk_z = jerk_z;
     packet.yaw = yaw;
     packet.yawspeed = yawspeed;
+    packet.seq_debug = seq_debug;
 
         memcpy(_MAV_PAYLOAD_NON_CONST(msg), &packet, MAVLINK_MSG_ID_TRAJECTORY_SETPOINT_LEN);
 #endif
@@ -228,7 +237,7 @@ static inline uint16_t mavlink_msg_trajectory_setpoint_pack_chan(uint8_t system_
  */
 static inline uint16_t mavlink_msg_trajectory_setpoint_encode(uint8_t system_id, uint8_t component_id, mavlink_message_t* msg, const mavlink_trajectory_setpoint_t* trajectory_setpoint)
 {
-    return mavlink_msg_trajectory_setpoint_pack(system_id, component_id, msg, trajectory_setpoint->timestamp, trajectory_setpoint->pos_x, trajectory_setpoint->pos_y, trajectory_setpoint->pos_z, trajectory_setpoint->vel_x, trajectory_setpoint->vel_y, trajectory_setpoint->vel_z, trajectory_setpoint->acc_x, trajectory_setpoint->acc_y, trajectory_setpoint->acc_z, trajectory_setpoint->jerk_x, trajectory_setpoint->jerk_y, trajectory_setpoint->jerk_z, trajectory_setpoint->yaw, trajectory_setpoint->yawspeed);
+    return mavlink_msg_trajectory_setpoint_pack(system_id, component_id, msg, trajectory_setpoint->timestamp, trajectory_setpoint->pos_x, trajectory_setpoint->pos_y, trajectory_setpoint->pos_z, trajectory_setpoint->vel_x, trajectory_setpoint->vel_y, trajectory_setpoint->vel_z, trajectory_setpoint->acc_x, trajectory_setpoint->acc_y, trajectory_setpoint->acc_z, trajectory_setpoint->jerk_x, trajectory_setpoint->jerk_y, trajectory_setpoint->jerk_z, trajectory_setpoint->yaw, trajectory_setpoint->yawspeed, trajectory_setpoint->seq_debug);
 }
 
 /**
@@ -242,7 +251,7 @@ static inline uint16_t mavlink_msg_trajectory_setpoint_encode(uint8_t system_id,
  */
 static inline uint16_t mavlink_msg_trajectory_setpoint_encode_chan(uint8_t system_id, uint8_t component_id, uint8_t chan, mavlink_message_t* msg, const mavlink_trajectory_setpoint_t* trajectory_setpoint)
 {
-    return mavlink_msg_trajectory_setpoint_pack_chan(system_id, component_id, chan, msg, trajectory_setpoint->timestamp, trajectory_setpoint->pos_x, trajectory_setpoint->pos_y, trajectory_setpoint->pos_z, trajectory_setpoint->vel_x, trajectory_setpoint->vel_y, trajectory_setpoint->vel_z, trajectory_setpoint->acc_x, trajectory_setpoint->acc_y, trajectory_setpoint->acc_z, trajectory_setpoint->jerk_x, trajectory_setpoint->jerk_y, trajectory_setpoint->jerk_z, trajectory_setpoint->yaw, trajectory_setpoint->yawspeed);
+    return mavlink_msg_trajectory_setpoint_pack_chan(system_id, component_id, chan, msg, trajectory_setpoint->timestamp, trajectory_setpoint->pos_x, trajectory_setpoint->pos_y, trajectory_setpoint->pos_z, trajectory_setpoint->vel_x, trajectory_setpoint->vel_y, trajectory_setpoint->vel_z, trajectory_setpoint->acc_x, trajectory_setpoint->acc_y, trajectory_setpoint->acc_z, trajectory_setpoint->jerk_x, trajectory_setpoint->jerk_y, trajectory_setpoint->jerk_z, trajectory_setpoint->yaw, trajectory_setpoint->yawspeed, trajectory_setpoint->seq_debug);
 }
 
 /**
@@ -264,10 +273,11 @@ static inline uint16_t mavlink_msg_trajectory_setpoint_encode_chan(uint8_t syste
  * @param jerk_z  target jerk z
  * @param yaw  target yaw
  * @param yawspeed  target yawspeed
+ * @param seq_debug  mavlink sequence
  */
 #ifdef MAVLINK_USE_CONVENIENCE_FUNCTIONS
 
-static inline void mavlink_msg_trajectory_setpoint_send(mavlink_channel_t chan, uint32_t timestamp, float pos_x, float pos_y, float pos_z, float vel_x, float vel_y, float vel_z, float acc_x, float acc_y, float acc_z, float jerk_x, float jerk_y, float jerk_z, float yaw, float yawspeed)
+static inline void mavlink_msg_trajectory_setpoint_send(mavlink_channel_t chan, uint32_t timestamp, float pos_x, float pos_y, float pos_z, float vel_x, float vel_y, float vel_z, float acc_x, float acc_y, float acc_z, float jerk_x, float jerk_y, float jerk_z, float yaw, float yawspeed, uint8_t seq_debug)
 {
 #if MAVLINK_NEED_BYTE_SWAP || !MAVLINK_ALIGNED_FIELDS
     char buf[MAVLINK_MSG_ID_TRAJECTORY_SETPOINT_LEN];
@@ -286,6 +296,7 @@ static inline void mavlink_msg_trajectory_setpoint_send(mavlink_channel_t chan, 
     _mav_put_float(buf, 48, jerk_z);
     _mav_put_float(buf, 52, yaw);
     _mav_put_float(buf, 56, yawspeed);
+    _mav_put_uint8_t(buf, 60, seq_debug);
 
     _mav_finalize_message_chan_send(chan, MAVLINK_MSG_ID_TRAJECTORY_SETPOINT, buf, MAVLINK_MSG_ID_TRAJECTORY_SETPOINT_MIN_LEN, MAVLINK_MSG_ID_TRAJECTORY_SETPOINT_LEN, MAVLINK_MSG_ID_TRAJECTORY_SETPOINT_CRC);
 #else
@@ -305,6 +316,7 @@ static inline void mavlink_msg_trajectory_setpoint_send(mavlink_channel_t chan, 
     packet.jerk_z = jerk_z;
     packet.yaw = yaw;
     packet.yawspeed = yawspeed;
+    packet.seq_debug = seq_debug;
 
     _mav_finalize_message_chan_send(chan, MAVLINK_MSG_ID_TRAJECTORY_SETPOINT, (const char *)&packet, MAVLINK_MSG_ID_TRAJECTORY_SETPOINT_MIN_LEN, MAVLINK_MSG_ID_TRAJECTORY_SETPOINT_LEN, MAVLINK_MSG_ID_TRAJECTORY_SETPOINT_CRC);
 #endif
@@ -318,7 +330,7 @@ static inline void mavlink_msg_trajectory_setpoint_send(mavlink_channel_t chan, 
 static inline void mavlink_msg_trajectory_setpoint_send_struct(mavlink_channel_t chan, const mavlink_trajectory_setpoint_t* trajectory_setpoint)
 {
 #if MAVLINK_NEED_BYTE_SWAP || !MAVLINK_ALIGNED_FIELDS
-    mavlink_msg_trajectory_setpoint_send(chan, trajectory_setpoint->timestamp, trajectory_setpoint->pos_x, trajectory_setpoint->pos_y, trajectory_setpoint->pos_z, trajectory_setpoint->vel_x, trajectory_setpoint->vel_y, trajectory_setpoint->vel_z, trajectory_setpoint->acc_x, trajectory_setpoint->acc_y, trajectory_setpoint->acc_z, trajectory_setpoint->jerk_x, trajectory_setpoint->jerk_y, trajectory_setpoint->jerk_z, trajectory_setpoint->yaw, trajectory_setpoint->yawspeed);
+    mavlink_msg_trajectory_setpoint_send(chan, trajectory_setpoint->timestamp, trajectory_setpoint->pos_x, trajectory_setpoint->pos_y, trajectory_setpoint->pos_z, trajectory_setpoint->vel_x, trajectory_setpoint->vel_y, trajectory_setpoint->vel_z, trajectory_setpoint->acc_x, trajectory_setpoint->acc_y, trajectory_setpoint->acc_z, trajectory_setpoint->jerk_x, trajectory_setpoint->jerk_y, trajectory_setpoint->jerk_z, trajectory_setpoint->yaw, trajectory_setpoint->yawspeed, trajectory_setpoint->seq_debug);
 #else
     _mav_finalize_message_chan_send(chan, MAVLINK_MSG_ID_TRAJECTORY_SETPOINT, (const char *)trajectory_setpoint, MAVLINK_MSG_ID_TRAJECTORY_SETPOINT_MIN_LEN, MAVLINK_MSG_ID_TRAJECTORY_SETPOINT_LEN, MAVLINK_MSG_ID_TRAJECTORY_SETPOINT_CRC);
 #endif
@@ -332,7 +344,7 @@ static inline void mavlink_msg_trajectory_setpoint_send_struct(mavlink_channel_t
   is usually the receive buffer for the channel, and allows a reply to an
   incoming message with minimum stack space usage.
  */
-static inline void mavlink_msg_trajectory_setpoint_send_buf(mavlink_message_t *msgbuf, mavlink_channel_t chan,  uint32_t timestamp, float pos_x, float pos_y, float pos_z, float vel_x, float vel_y, float vel_z, float acc_x, float acc_y, float acc_z, float jerk_x, float jerk_y, float jerk_z, float yaw, float yawspeed)
+static inline void mavlink_msg_trajectory_setpoint_send_buf(mavlink_message_t *msgbuf, mavlink_channel_t chan,  uint32_t timestamp, float pos_x, float pos_y, float pos_z, float vel_x, float vel_y, float vel_z, float acc_x, float acc_y, float acc_z, float jerk_x, float jerk_y, float jerk_z, float yaw, float yawspeed, uint8_t seq_debug)
 {
 #if MAVLINK_NEED_BYTE_SWAP || !MAVLINK_ALIGNED_FIELDS
     char *buf = (char *)msgbuf;
@@ -351,6 +363,7 @@ static inline void mavlink_msg_trajectory_setpoint_send_buf(mavlink_message_t *m
     _mav_put_float(buf, 48, jerk_z);
     _mav_put_float(buf, 52, yaw);
     _mav_put_float(buf, 56, yawspeed);
+    _mav_put_uint8_t(buf, 60, seq_debug);
 
     _mav_finalize_message_chan_send(chan, MAVLINK_MSG_ID_TRAJECTORY_SETPOINT, buf, MAVLINK_MSG_ID_TRAJECTORY_SETPOINT_MIN_LEN, MAVLINK_MSG_ID_TRAJECTORY_SETPOINT_LEN, MAVLINK_MSG_ID_TRAJECTORY_SETPOINT_CRC);
 #else
@@ -370,6 +383,7 @@ static inline void mavlink_msg_trajectory_setpoint_send_buf(mavlink_message_t *m
     packet->jerk_z = jerk_z;
     packet->yaw = yaw;
     packet->yawspeed = yawspeed;
+    packet->seq_debug = seq_debug;
 
     _mav_finalize_message_chan_send(chan, MAVLINK_MSG_ID_TRAJECTORY_SETPOINT, (const char *)packet, MAVLINK_MSG_ID_TRAJECTORY_SETPOINT_MIN_LEN, MAVLINK_MSG_ID_TRAJECTORY_SETPOINT_LEN, MAVLINK_MSG_ID_TRAJECTORY_SETPOINT_CRC);
 #endif
@@ -532,6 +546,16 @@ static inline float mavlink_msg_trajectory_setpoint_get_yawspeed(const mavlink_m
 }
 
 /**
+ * @brief Get field seq_debug from trajectory_setpoint message
+ *
+ * @return  mavlink sequence
+ */
+static inline uint8_t mavlink_msg_trajectory_setpoint_get_seq_debug(const mavlink_message_t* msg)
+{
+    return _MAV_RETURN_uint8_t(msg,  60);
+}
+
+/**
  * @brief Decode a trajectory_setpoint message into a struct
  *
  * @param msg The message to decode
@@ -555,6 +579,7 @@ static inline void mavlink_msg_trajectory_setpoint_decode(const mavlink_message_
     trajectory_setpoint->jerk_z = mavlink_msg_trajectory_setpoint_get_jerk_z(msg);
     trajectory_setpoint->yaw = mavlink_msg_trajectory_setpoint_get_yaw(msg);
     trajectory_setpoint->yawspeed = mavlink_msg_trajectory_setpoint_get_yawspeed(msg);
+    trajectory_setpoint->seq_debug = mavlink_msg_trajectory_setpoint_get_seq_debug(msg);
 #else
         uint8_t len = msg->len < MAVLINK_MSG_ID_TRAJECTORY_SETPOINT_LEN? msg->len : MAVLINK_MSG_ID_TRAJECTORY_SETPOINT_LEN;
         memset(trajectory_setpoint, 0, MAVLINK_MSG_ID_TRAJECTORY_SETPOINT_LEN);

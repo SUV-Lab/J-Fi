@@ -79,7 +79,8 @@ void SerialSender::vehicle_status_callback(const VehicleStatus::SharedPtr dds_ms
         vehicle_status.timestamp,
         vehicle_status.armed_time,
         vehicle_status.arming_state,
-        vehicle_status.nav_state);
+        vehicle_status.nav_state,
+        mav_msg.seq);
 
     send_serial_data(mav_msg);
 }
@@ -109,7 +110,8 @@ void SerialSender::trajectory_callback(const TrajectorySetpoint::SharedPtr dds_m
         trajectory_setpoint.jerk[1],
         trajectory_setpoint.jerk[2],
         trajectory_setpoint.yaw,
-        trajectory_setpoint.yawspeed);
+        trajectory_setpoint.yawspeed,
+        mav_msg.seq);
 
     send_serial_data(mav_msg);
 }

@@ -11,7 +11,6 @@
 #include <string>
 #include <chrono>
 #include <cstring>
-#include <fstream>
 
 using px4_msgs::msg::TrajectorySetpoint;
 using px4_msgs::msg::VehicleStatus;
@@ -25,7 +24,6 @@ public:
 
 private:
     int serial_fd_;
-    std::ofstream seq_file_;
     rclcpp::TimerBase::SharedPtr timer_;
 
     void configure_serial_port();

@@ -10,7 +10,7 @@
     #error Wrong include order: MAVLINK_ROVER.H MUST NOT BE DIRECTLY USED. Include mavlink.h from the same directory instead or set ALL AND EVERY defines from MAVLINK.H manually accordingly, including the #define MAVLINK_H call.
 #endif
 
-#define MAVLINK_ROVER_XML_HASH 7758513057853797779
+#define MAVLINK_ROVER_XML_HASH 3462387848964698199
 
 #ifdef __cplusplus
 extern "C" {
@@ -23,7 +23,7 @@ extern "C" {
 #endif
 
 #ifndef MAVLINK_MESSAGE_CRCS
-#define MAVLINK_MESSAGE_CRCS {{190, 202, 60, 60, 0, 0, 0}, {191, 111, 18, 18, 0, 0, 0}}
+#define MAVLINK_MESSAGE_CRCS {{190, 249, 61, 61, 0, 0, 0}, {191, 65, 19, 19, 0, 0, 0}}
 #endif
 
 #include "../protocol.h"

@@ -37,6 +37,7 @@ TEST(rover, TRAJECTORY_SETPOINT)
     packet_in.jerk_z = 353.0;
     packet_in.yaw = 381.0;
     packet_in.yawspeed = 409.0;
+    packet_in.seq_debug = 185;
 
     mavlink::rover::msg::TRAJECTORY_SETPOINT packet1{};
     mavlink::rover::msg::TRAJECTORY_SETPOINT packet2{};
@@ -66,6 +67,7 @@ TEST(rover, TRAJECTORY_SETPOINT)
     EXPECT_EQ(packet1.jerk_z, packet2.jerk_z);
     EXPECT_EQ(packet1.yaw, packet2.yaw);
     EXPECT_EQ(packet1.yawspeed, packet2.yawspeed);
+    EXPECT_EQ(packet1.seq_debug, packet2.seq_debug);
 }
 
 #ifdef TEST_INTEROP
@@ -77,7 +79,7 @@ TEST(rover_interop, TRAJECTORY_SETPOINT)
     memset(&msg, 0, sizeof(msg));
 
     mavlink_trajectory_setpoint_t packet_c {
-         963497464, 45.0, 73.0, 101.0, 129.0, 157.0, 185.0, 213.0, 241.0, 269.0, 297.0, 325.0, 353.0, 381.0, 409.0
+         963497464, 45.0, 73.0, 101.0, 129.0, 157.0, 185.0, 213.0, 241.0, 269.0, 297.0, 325.0, 353.0, 381.0, 409.0, 185
     };
 
     mavlink::rover::msg::TRAJECTORY_SETPOINT packet_in{};
@@ -96,6 +98,7 @@ TEST(rover_interop, TRAJECTORY_SETPOINT)
     packet_in.jerk_z = 353.0;
     packet_in.yaw = 381.0;
     packet_in.yawspeed = 409.0;
+    packet_in.seq_debug = 185;
 
     mavlink::rover::msg::TRAJECTORY_SETPOINT packet2{};
 
@@ -123,6 +126,7 @@ TEST(rover_interop, TRAJECTORY_SETPOINT)
     EXPECT_EQ(packet_in.jerk_z, packet2.jerk_z);
     EXPECT_EQ(packet_in.yaw, packet2.yaw);
     EXPECT_EQ(packet_in.yawspeed, packet2.yawspeed);
+    EXPECT_EQ(packet_in.seq_debug, packet2.seq_debug);
 
 #ifdef PRINT_MSG
     PRINT_MSG(msg);
@@ -141,6 +145,7 @@ TEST(rover, VEHICLE_STATUS)
     packet_in.armed_time = 93372036854776311ULL;
     packet_in.arming_state = 53;
     packet_in.nav_state = 120;
+    packet_in.seq_debug = 187;
 
     mavlink::rover::msg::VEHICLE_STATUS packet1{};
     mavlink::rover::msg::VEHICLE_STATUS packet2{};
@@ -159,6 +164,7 @@ TEST(rover, VEHICLE_STATUS)
     EXPECT_EQ(packet1.armed_time, packet2.armed_time);
     EXPECT_EQ(packet1.arming_state, packet2.arming_state);
     EXPECT_EQ(packet1.nav_state, packet2.nav_state);
+    EXPECT_EQ(packet1.seq_debug, packet2.seq_debug);
 }
 
 #ifdef TEST_INTEROP
@@ -170,7 +176,7 @@ TEST(rover_interop, VEHICLE_STATUS)
     memset(&msg, 0, sizeof(msg));
 
     mavlink_vehicle_status_t packet_c {
-         93372036854775807ULL, 93372036854776311ULL, 53, 120
+         93372036854775807ULL, 93372036854776311ULL, 53, 120, 187
     };
 
     mavlink::rover::msg::VEHICLE_STATUS packet_in{};
@@ -178,6 +184,7 @@ TEST(rover_interop, VEHICLE_STATUS)
     packet_in.armed_time = 93372036854776311ULL;
     packet_in.arming_state = 53;
     packet_in.nav_state = 120;
+    packet_in.seq_debug = 187;
 
     mavlink::rover::msg::VEHICLE_STATUS packet2{};
 
@@ -194,6 +201,7 @@ TEST(rover_interop, VEHICLE_STATUS)
     EXPECT_EQ(packet_in.armed_time, packet2.armed_time);
     EXPECT_EQ(packet_in.arming_state, packet2.arming_state);
     EXPECT_EQ(packet_in.nav_state, packet2.nav_state);
+    EXPECT_EQ(packet_in.seq_debug, packet2.seq_debug);
 
 #ifdef PRINT_MSG
     PRINT_MSG(msg);
