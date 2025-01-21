@@ -1,8 +1,14 @@
 #include "serial_receiver.hpp"
-#include <cstring>
 
 SerialReceiver::SerialReceiver() : Node("serial_receiver")
 {
+    seq_file_.open("seq_log.txt", std::ios::app);
+    if (!seq_file_.is_open())
+    {
+        RCLCPP_ERROR(this->get_logger(), "Failed to open seq_log.txt for writing");
+        rclcpp::shutdown();
+    }
+
     int rover_id;
     this->declare_parameter<int>("rover_id", 1);
     this->get_parameter("rover_id", rover_id);
@@ -39,6 +45,10 @@ SerialReceiver::SerialReceiver() : Node("serial_receiver")
 
 SerialReceiver::~SerialReceiver()
 {
+    if (seq_file_.is_open())
+    {
+        seq_file_.close();
+    }
     if (serial_fd_ >= 0)
         close(serial_fd_);
 }
@@ -82,6 +92,13 @@ void SerialReceiver::receive_serial_data()
     {
         if (mavlink_parse_char(MAVLINK_COMM_0, byte, &msg, &status))
         {
+            // RCLCPP_ERROR(this->get_logger(), "SEQ: %d", msg.seq);
+            // Write current seq to file
+            if (seq_file_.is_open())
+            {
+                seq_file_ << "Seq: " << static_cast<int>(msg.seq) << std::endl;
+            }
+
             // Handle received MAVLink custom message
             if (msg.msgid == MAVLINK_MSG_ID_TRAJECTORY_SETPOINT)
             {
