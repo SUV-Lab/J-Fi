@@ -29,8 +29,8 @@ SerialSender::SerialSender() : Node("serial_sender")
     trajectory_sub_ = this->create_subscription<TrajectorySetpoint>(
         topic_prefix_out + "trajectory_setpoint", qos, std::bind(&SerialSender::trajectory_callback, this, std::placeholders::_1));
 
-    vehicle_status_sub_ = this->create_subscription<VehicleStatus>(
-        topic_prefix_out + "vehicle_status", qos, std::bind(&SerialSender::vehicle_status_callback, this, std::placeholders::_1));
+    // vehicle_status_sub_ = this->create_subscription<VehicleStatus>(
+    //     topic_prefix_out + "vehicle_status", qos, std::bind(&SerialSender::vehicle_status_callback, this, std::placeholders::_1));
 }
 
 SerialSender::~SerialSender()
@@ -65,25 +65,25 @@ void SerialSender::configure_serial_port()
     }
 }
 
-void SerialSender::vehicle_status_callback(const VehicleStatus::SharedPtr dds_msg)
-{
-    mavlink_message_t mav_msg;
+// void SerialSender::vehicle_status_callback(const VehicleStatus::SharedPtr dds_msg)
+// {
+//     mavlink_message_t mav_msg;
 
-    VehicleStatus vehicle_status{};
-    vehicle_status = *dds_msg;
+//     VehicleStatus vehicle_status{};
+//     vehicle_status = *dds_msg;
 
-    mavlink_msg_vehicle_status_pack(
-        1,   // System ID
-        200, // Component ID
-        &mav_msg,
-        vehicle_status.timestamp,
-        vehicle_status.armed_time,
-        vehicle_status.arming_state,
-        vehicle_status.nav_state,
-        mav_msg.seq);
+//     mavlink_msg_vehicle_status_pack(
+//         1,   // System ID
+//         200, // Component ID
+//         &mav_msg,
+//         vehicle_status.timestamp,
+//         vehicle_status.armed_time,
+//         vehicle_status.arming_state,
+//         vehicle_status.nav_state,
+//         mav_msg.seq);
 
-    send_serial_data(mav_msg);
-}
+//     send_serial_data(mav_msg);
+// }
 
 void SerialSender::trajectory_callback(const TrajectorySetpoint::SharedPtr dds_msg)
 {

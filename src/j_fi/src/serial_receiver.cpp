@@ -30,7 +30,6 @@ SerialReceiver::SerialReceiver() : Node("serial_receiver")
     auto qos = rclcpp::QoS(rclcpp::QoSInitialization(qos_profile.history, 5), qos_profile);
 
     trajectory_setpoint_pub_ = this->create_publisher<TrajectorySetpoint>(leader_to_follower_prefix + "target_position", qos);
-    vehicle_status_pub_ = this->create_publisher<VehicleStatus>(leader_to_follower_prefix + "target_status", qos);
 
     // Periodic timer to read serial data
     timer_ = this->create_wall_timer(100ms, std::bind(&SerialReceiver::receive_serial_data, this));
@@ -107,20 +106,23 @@ void SerialReceiver::receive_serial_data()
 
                 trajectory_setpoint_pub_->publish(msg);
             }
-            else if (msg.msgid == MAVLINK_MSG_ID_VEHICLE_STATUS)
-            {
-                mavlink_vehicle_status_t status_msg;
-                mavlink_msg_vehicle_status_decode(&msg, &status_msg);
 
-                VehicleStatus msg{};
-                msg.timestamp = status_msg.timestamp;
-                msg.armed_time = status_msg.armed_time;
-                msg.arming_state = status_msg.arming_state;
-                msg.nav_state = status_msg.nav_state;
-                msg.latest_arming_reason = status_msg.seq_debug;
+            // Currently not in use
 
-                vehicle_status_pub_->publish(msg);
-            }
+            // else if (msg.msgid == MAVLINK_MSG_ID_VEHICLE_STATUS)
+            // {
+            //     mavlink_vehicle_status_t status_msg;
+            //     mavlink_msg_vehicle_status_decode(&msg, &status_msg);
+
+            //     VehicleStatus msg{};
+            //     msg.timestamp = status_msg.timestamp;
+            //     msg.armed_time = status_msg.armed_time;
+            //     msg.arming_state = status_msg.arming_state;
+            //     msg.nav_state = status_msg.nav_state;
+            //     msg.latest_arming_reason = status_msg.seq_debug;
+
+            //     vehicle_status_pub_->publish(msg);
+            // }
         }
     }
 }
