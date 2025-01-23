@@ -12,7 +12,7 @@ ROS2 Serial Communication Library using MAVLink
 - $ cd J-Fi/src/jfi_transceiver/mavlink
 - $ git apply mavlink-changes.patch
 2. (Optional) Define MAVLink messages
-- Add MAVLink message_definition (ex.custom.xml)
+- Add MAVLink message_definition (ex.custom.xml) to J-Fi/src/jfi_transceiver/mavlink/message_definitions/v1.0
 3. Build
 - $ colcon build
 ```
