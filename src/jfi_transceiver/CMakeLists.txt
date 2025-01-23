@@ -22,7 +22,6 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
-find_package(px4_msgs REQUIRED)
 
 # Include headers
 include_directories(include)
@@ -32,11 +31,15 @@ add_compile_options(-Wno-pedantic -Wno-address-of-packed-member)
 
 add_executable(jfi_transceiver src/jfi_transceiver.cpp)
 add_dependencies(jfi_transceiver mavlink)
-ament_target_dependencies(jfi_transceiver rclcpp std_msgs px4_msgs)
+ament_target_dependencies(jfi_transceiver rclcpp std_msgs)
+
+add_executable(mavlink_test src/mavlink_test.cpp)
+add_dependencies(mavlink_test mavlink)
+ament_target_dependencies(mavlink_test rclcpp std_msgs)
 
 install(TARGETS
   jfi_transceiver
-
+  mavlink_test
   DESTINATION lib/${PROJECT_NAME})
 
 install(
