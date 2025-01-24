@@ -9,10 +9,10 @@ ROS2 Serial Communication Library using MAVLink
 ```
 1. Apply submodule patch
 - Move 'mavlink-changes.patch' file to mavlink submodule
-- $ cd J-Fi/src/jfi_transceiver/mavlink
+- $ cd J-Fi/src/serial_comm/mavlink
 - $ git apply mavlink-changes.patch
 2. (Optional) Define MAVLink messages
-- Add MAVLink message_definition (ex.custom.xml) to J-Fi/src/jfi_transceiver/mavlink/message_definitions/v1.0
+- Add MAVLink message_definition (ex.custom.xml) to J-Fi/src/serial_comm/mavlink/message_definitions/v1.0
 3. Build
 - $ colcon build
 ```
@@ -20,5 +20,5 @@ ROS2 Serial Communication Library using MAVLink
 # Run 
 
 ```
-ros2 launch jfi_transceiver <launch file>
+ros2 launch serial_comm serial_comm_node.launch.py
 ```
