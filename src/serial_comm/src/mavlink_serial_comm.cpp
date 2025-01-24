@@ -19,17 +19,15 @@ MavlinkSerialComm::~MavlinkSerialComm()
 }
 
 /**
- * @brief termios로 시리얼 포트를 열고 8N1, baud_rate 설정
+ * @brief Open the serial port, set 8N1 and baud_rate
  */
 bool MavlinkSerialComm::openPort(const std::string & port_name, int baud_rate)
 {
   std::lock_guard<std::mutex> lock(fd_mutex_);
   if(fd_ >= 0) {
-    // 이미 열려 있다면 닫고 다시 여는 로직을 넣어도 됨
     return true;
   }
 
-  // O_RDWR: 읽기/쓰기, O_NOCTTY: 이 장치를 제어 터미널로 사용하지 않음
   fd_ = ::open(port_name.c_str(), O_RDWR | O_NOCTTY | O_SYNC);
   if(fd_ < 0) {
     std::cerr << "[ERROR] Failed to open " << port_name 
@@ -37,7 +35,6 @@ bool MavlinkSerialComm::openPort(const std::string & port_name, int baud_rate)
     return false;
   }
 
-  // termios 설정
   struct termios tty;
   memset(&tty, 0, sizeof(tty));
   if(tcgetattr(fd_, &tty) != 0) {
@@ -47,8 +44,6 @@ bool MavlinkSerialComm::openPort(const std::string & port_name, int baud_rate)
     return false;
   }
 
-  // 속도 설정(baud_rate -> Bxxxx 상수 변환 필요. 예: 115200 -> B115200)
-  // 간단히 예시로 115200만 처리:
   speed_t speed = B115200;
   if(baud_rate == 9600) {
     speed = B9600;
@@ -61,7 +56,6 @@ bool MavlinkSerialComm::openPort(const std::string & port_name, int baud_rate)
   } else if(baud_rate == 115200) {
     speed = B115200;
   } else {
-    // 실제로 더 많은 baud rate 매핑이 필요할 수 있음
     std::cerr << "[WARN] Unsupported baud rate: " << baud_rate 
               << ", defaulting to 115200" << std::endl;
     speed = B115200;
@@ -76,10 +70,9 @@ bool MavlinkSerialComm::openPort(const std::string & port_name, int baud_rate)
   tty.c_cflag &= ~CSTOPB;  // 1 stop bit
   tty.c_cflag |= CLOCAL | CREAD; // local line, enable read
 
-  // raw 모드
+  // Set raw mode
   cfmakeraw(&tty);
 
-  // 변경 적용
   if(tcsetattr(fd_, TCSANOW, &tty) != 0) {
     std::cerr << "[ERROR] tcsetattr: " << strerror(errno) << std::endl;
     ::close(fd_);
@@ -87,7 +80,6 @@ bool MavlinkSerialComm::openPort(const std::string & port_name, int baud_rate)
     return false;
   }
 
-  // 버퍼 플러시
   tcflush(fd_, TCIOFLUSH);
 
   std::cout << "[INFO] Opened port " << port_name 
@@ -106,11 +98,10 @@ void MavlinkSerialComm::closePort()
 }
 
 /**
- * @brief 토픽 데이터 -> MAVLink 메시지 -> 직렬화 -> send_buffer_
+ * @brief Convert topic_data into a MAVLink message (STATUSTEXT example) and push to send_buffer_
  */
 void MavlinkSerialComm::send(const std::string & topic_data)
 {
-  // 예) STATUSTEXT 예시
   mavlink_message_t msg;
   mavlink_statustext_t st;
   memset(&st, 0, sizeof(st));
@@ -129,33 +120,30 @@ void MavlinkSerialComm::send(const std::string & topic_data)
 }
 
 /**
- * @brief 송신 버퍼에서 1개씩 꺼내 write(fd, ...)
+ * @brief Send one message at a time from send_buffer_ to the serial port
  */
 void MavlinkSerialComm::checkSendBuffer()
 {
-  // fd 접근
   std::lock_guard<std::mutex> fd_lock(fd_mutex_);
   if(fd_ < 0) {
     return;
   }
 
-  // 버퍼 접근
   std::lock_guard<std::mutex> buf_lock(send_buffer_mutex_);
   if(!send_buffer_.empty()) {
     auto & front_data = send_buffer_.front();
     ssize_t written = ::write(fd_, front_data.data(), front_data.size());
+
     if(written < 0) {
       std::cerr << "[ERROR] write failed: " << strerror(errno) << std::endl;
-    } else {
-      // 성공
-      // std::cout << "[SEND] " << written << " bytes" << std::endl;
     }
+
     send_buffer_.erase(send_buffer_.begin());
   }
 }
 
 /**
- * @brief 시리얼에서 바이트를 읽고, MAVLink 파서
+ * @brief Read bytes from the serial port and parse them as MAVLink
  */
 void MavlinkSerialComm::readMavlinkMessages()
 {
@@ -164,10 +152,9 @@ void MavlinkSerialComm::readMavlinkMessages()
     return;
   }
 
-  // 얼마나 available 한지 확인하는 방법 중 하나: FIONREAD ioctl
   int bytes_available = 0;
   if(ioctl(fd_, FIONREAD, &bytes_available) == -1) {
-    // 에러지만, 간단히 무시
+    // If an error occurs, treat as 0
     bytes_available = 0;
   }
 
@@ -183,12 +170,12 @@ void MavlinkSerialComm::readMavlinkMessages()
 }
 
 /**
- * @brief byte-by-byte로 MAVLink 파싱
+ * @brief Parse MAVLink byte by byte. If a message is complete, call receive_callback_
  */
 void MavlinkSerialComm::parseOneByte(uint8_t byte)
 {
   if(mavlink_parse_char(MAVLINK_COMM_0, byte, &mav_msg_, &status_)) {
-    // 메시지 완성
+    // A message is fully parsed
     if(receive_callback_) {
       receive_callback_(mav_msg_);
     }
@@ -196,7 +183,7 @@ void MavlinkSerialComm::parseOneByte(uint8_t byte)
 }
 
 /**
- * @brief 수신 콜백 등록
+ * @brief Register a callback for receiving MAVLink messages
  */
 void MavlinkSerialComm::setReceiveCallback(std::function<void(const mavlink_message_t &)> cb)
 {
@@ -204,7 +191,7 @@ void MavlinkSerialComm::setReceiveCallback(std::function<void(const mavlink_mess
 }
 
 /**
- * @brief 내부 write 함수 (여기서는 checkSendBuffer() 내부에서 직접 write하므로 미사용 가능)
+ * @brief A helper function to write raw data (not used in the main flow as we do direct write in checkSendBuffer)
  */
 void MavlinkSerialComm::writeData(const std::vector<uint8_t> & data)
 {

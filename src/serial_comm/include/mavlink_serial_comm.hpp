@@ -5,26 +5,22 @@
 #include <vector>
 #include <mutex>
 #include <functional>
-
-// termios 헤더 (POSIX 시리얼 제어)
 #include <termios.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
-
-// MAVLink 헤더 (common 등 필요한 dialect)
 #include "mavlink/common/mavlink.h"
 
 /**
- * @class MavlinkSerialComm
- * @brief termios.h 기반 시리얼 + MAVLink 통신 라이브러리
- * 
- * - openPort/closePort: termios로 직접 포트 열고 닫기
- * - send: 토픽 데이터 → MAVLink 직렬화 → 송신 버퍼
- * - checkSendBuffer: 버퍼에서 1개씩 꺼내 write(fd, ...)
- * - readMavlinkMessages: 시리얼로부터 바이트 읽어 MAVLink 파서
- * - 메시지 완성 시, setReceiveCallback()으로 등록된 콜백 호출
+ * @class JFiComm
+ * @brief A library that implements serial communication with MAVLink
+ *
+ * - openPort/closePort: Open and close the serial port
+ * - send: Convert topic data into a MAVLink message, then store in the send buffer
+ * - checkSendBuffer: Send data from the buffer to the serial port one by one
+ * - readMavlinkMessages: Read bytes from the serial port and parse them as MAVLink
+ * - When a message is fully parsed, call the callback function (set via setReceiveCallback)
  */
 class MavlinkSerialComm
 {
@@ -32,48 +28,66 @@ public:
   MavlinkSerialComm();
   ~MavlinkSerialComm();
 
+  /**
+   * @brief Open the serial port
+   * @param port_name e.g. "/dev/ttyUSB0"
+   * @param baud_rate e.g. 115200
+   * @return true if successfully opened, false otherwise
+   */
   bool openPort(const std::string & port_name, int baud_rate);
+  
+  /**
+   * @brief Close the serial port
+   */
   void closePort();
 
+  /**
+   * @brief Convert topic data to a MAVLink message and store it in the send buffer
+   * @param topic_data For example, a string from a ROS topic
+   */
   void send(const std::string & topic_data);
+  
+  /**
+   * @brief Check the send buffer and write one message at a time to the serial port
+   */
   void checkSendBuffer();
+  
+  /**
+   * @brief Read bytes from the serial port, parse them as MAVLink
+   *        Should be called periodically or by an event
+   */
   void readMavlinkMessages();
 
   /**
-   * @brief 콜백 함수 등록
-   * @param cb 완성된 mavlink_message_t를 전달받는 콜백
+   * @brief Register a receive callback
+   * @param cb A function that takes 'const mavlink_message_t &' and returns void
+   *           This function is called when a MAVLink message is fully parsed
    */
   void setReceiveCallback(std::function<void(const mavlink_message_t &)> cb);
 
 private:
   /**
-   * @brief 바이트 단위로 MAVLink 파싱
-   * @param byte 단일 바이트
+   * @brief Parse MAVLink byte-by-byte
+   * @param byte A single byte
    */
   void parseOneByte(uint8_t byte);
 
   /**
-   * @brief 실제 시리얼 write
-   * @param data 바이너리 데이터
+   * @brief Helper function to write raw data to the serial port
+   * @param data Binary data
    */
   void writeData(const std::vector<uint8_t> & data);
 
-  // --------------------------------------------------
-  // 멤버 변수
-  // --------------------------------------------------
 private:
-  int fd_;  ///< termios에서 사용하는 파일 디스크립터. -1이면 닫힌 상태
-  std::mutex fd_mutex_;  ///< fd_ 접근 보호
+  int fd_;
+  std::mutex fd_mutex_;
 
-  // MAVLink 파서 상태
   mavlink_message_t mav_msg_;
   mavlink_status_t status_;
 
-  // 송신 버퍼 (MAVLink 직렬화된 바이너리)
   std::vector<std::vector<uint8_t>> send_buffer_;
   std::mutex send_buffer_mutex_;
 
-  // 수신 콜백
   std::function<void(const mavlink_message_t &)> receive_callback_;
 };
 

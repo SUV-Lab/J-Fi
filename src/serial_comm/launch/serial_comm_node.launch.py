@@ -5,7 +5,7 @@ from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 
 def generate_launch_description():
-    # 런치 인자 선언
+    # Declare launch arguments
     port_arg = DeclareLaunchArgument(
         'port_name',
         default_value='/dev/ttyUSB0',
@@ -17,15 +17,14 @@ def generate_launch_description():
         description='Serial port baud rate'
     )
 
-    # 런치 인자 읽기
     port_name = LaunchConfiguration('port_name')
     baud_rate = LaunchConfiguration('baud_rate')
 
-    # Node 정의
+    # Define the Node
     comm_node = Node(
-        package='serial_comm',           # 빌드된 패키지 이름
-        executable='serial_comm_node',       # 실행 파일 이름 (comm_node)
-        name='comm_node',                    # 노드 이름
+        package='serial_comm',
+        executable='serial_comm_node',
+        name='comm_node',
         output='screen',
         parameters=[
             {'port_name': port_name},
@@ -33,7 +32,6 @@ def generate_launch_description():
         ]
     )
 
-    # LaunchDescription 반환
     return LaunchDescription([
         port_arg,
         baud_arg,
