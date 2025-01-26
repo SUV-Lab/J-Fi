@@ -18,10 +18,13 @@ ROS2 Serial Communication Library using MAVLink
 - Add MAVLink message_definition (ex.custom.xml) to J-Fi/src/serial_comm/mavlink/message_definitions/v1.0
 3. Build
 - $ colcon build
+- $ source install/setup.bash
 ```
 
 # Run 
 
 ```
-ros2 launch serial_comm serial_comm_node.launch.py
+- $ ros2 launch serial_comm serial_comm_node.launch.py
+(Optional) Example Launch Configuration
+- $ ros2 launch serial_comm serial_comm_node.launch.py port_name:=/dev/ttyUSB0 baud_rate:=115200
 ```
