@@ -22,7 +22,7 @@ def generate_launch_description():
 
     # Define the Node
     comm_node = Node(
-        package='serial_comm',
+        package='jfi_comm',
         executable='serial_comm_node',
         name='comm_node',
         output='screen',

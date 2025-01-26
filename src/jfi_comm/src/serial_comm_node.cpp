@@ -2,7 +2,7 @@
 #include <rclcpp/rclcpp.hpp>
 #include <std_msgs/msg/string.hpp>
 
-#include "mavlink_serial_comm.hpp"
+#include "jfi_comm.hpp"
 
 using namespace std::chrono_literals;
 
@@ -32,7 +32,7 @@ public:
     // ---------------------------
     // 2) Open the serial port
     // ---------------------------
-    bool ok = mavlink_comm_.openPort(port_name_, baud_rate_);
+    bool ok = jfi_comm_.openPort(port_name_, baud_rate_);
     if(!ok) {
       RCLCPP_ERROR(this->get_logger(),
                    "Failed to open port: %s (baud=%d)",
@@ -47,7 +47,7 @@ public:
     // ---------------------------
     // 3) Register the receive callback
     // ---------------------------
-    mavlink_comm_.setReceiveCallback(
+    jfi_comm_.setReceiveCallback(
       [this](const mavlink_message_t & msg)
       {
         this->handleMavlinkMessage(msg);
@@ -62,7 +62,7 @@ public:
       "to_serial", 
       10,
       [this](const std_msgs::msg::String::SharedPtr msg) {
-        mavlink_comm_.send(msg->data);
+        jfi_comm_.send(msg->data);
         RCLCPP_INFO(this->get_logger(), 
                     "[SUB] to_serial: '%s' -> send()", 
                     msg->data.c_str());
@@ -81,8 +81,8 @@ public:
     main_timer_ = this->create_wall_timer(
       50ms, 
       [this]() {
-        mavlink_comm_.checkSendBuffer();
-        mavlink_comm_.readMavlinkMessages();
+        jfi_comm_.checkSendBuffer();
+        jfi_comm_.readMavlinkMessages();
       }
     );
 
@@ -93,7 +93,7 @@ public:
 
   ~SerialCommNode()
   {
-    mavlink_comm_.closePort();
+    jfi_comm_.closePort();
   }
 
 private:
@@ -125,7 +125,7 @@ private:
   }
 
 private:
-  MavlinkSerialComm mavlink_comm_;
+  JFiComm jfi_comm_;
 
   // Parameters
   std::string port_name_;

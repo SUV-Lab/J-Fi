@@ -1,5 +1,5 @@
-#ifndef MAVLINK_SERIAL_COMM_HPP
-#define MAVLINK_SERIAL_COMM_HPP
+#ifndef JFI_COMM_HPP
+#define JFI_COMM_HPP
 
 #include <string>
 #include <vector>
@@ -22,11 +22,11 @@
  * - readMavlinkMessages: Read bytes from the serial port and parse them as MAVLink
  * - When a message is fully parsed, call the callback function (set via setReceiveCallback)
  */
-class MavlinkSerialComm
+class JFiComm
 {
 public:
-  MavlinkSerialComm();
-  ~MavlinkSerialComm();
+  JFiComm();
+  ~JFiComm();
 
   /**
    * @brief Open the serial port
@@ -91,4 +91,4 @@ private:
   std::function<void(const mavlink_message_t &)> receive_callback_;
 };
 
-#endif  // MAVLINK_SERIAL_COMM_HPP
+#endif  // JFI_COMM_HPP

@@ -1,4 +1,4 @@
-#include "mavlink_serial_comm.hpp"
+#include "jfi_comm.hpp"
 
 #include <cstring>
 #include <stdexcept>
@@ -6,14 +6,14 @@
 #include <iostream>
 #include <sys/ioctl.h>
 
-MavlinkSerialComm::MavlinkSerialComm()
+JFiComm::JFiComm()
 : fd_(-1)
 {
   memset(&mav_msg_, 0, sizeof(mav_msg_));
   memset(&status_, 0, sizeof(status_));
 }
 
-MavlinkSerialComm::~MavlinkSerialComm()
+JFiComm::~JFiComm()
 {
   closePort();
 }
@@ -21,7 +21,7 @@ MavlinkSerialComm::~MavlinkSerialComm()
 /**
  * @brief Open the serial port, set 8N1 and baud_rate
  */
-bool MavlinkSerialComm::openPort(const std::string & port_name, int baud_rate)
+bool JFiComm::openPort(const std::string & port_name, int baud_rate)
 {
   std::lock_guard<std::mutex> lock(fd_mutex_);
   if(fd_ >= 0) {
@@ -87,7 +87,7 @@ bool MavlinkSerialComm::openPort(const std::string & port_name, int baud_rate)
   return true;
 }
 
-void MavlinkSerialComm::closePort()
+void JFiComm::closePort()
 {
   std::lock_guard<std::mutex> lock(fd_mutex_);
   if(fd_ >= 0) {
@@ -100,7 +100,7 @@ void MavlinkSerialComm::closePort()
 /**
  * @brief Convert topic_data into a MAVLink message (STATUSTEXT example) and push to send_buffer_
  */
-void MavlinkSerialComm::send(const std::string & topic_data)
+void JFiComm::send(const std::string & topic_data)
 {
   mavlink_message_t msg;
   mavlink_statustext_t st;
@@ -122,7 +122,7 @@ void MavlinkSerialComm::send(const std::string & topic_data)
 /**
  * @brief Send one message at a time from send_buffer_ to the serial port
  */
-void MavlinkSerialComm::checkSendBuffer()
+void JFiComm::checkSendBuffer()
 {
   std::lock_guard<std::mutex> fd_lock(fd_mutex_);
   if(fd_ < 0) {
@@ -145,7 +145,7 @@ void MavlinkSerialComm::checkSendBuffer()
 /**
  * @brief Read bytes from the serial port and parse them as MAVLink
  */
-void MavlinkSerialComm::readMavlinkMessages()
+void JFiComm::readMavlinkMessages()
 {
   std::lock_guard<std::mutex> lock(fd_mutex_);
   if(fd_ < 0) {
@@ -172,7 +172,7 @@ void MavlinkSerialComm::readMavlinkMessages()
 /**
  * @brief Parse MAVLink byte by byte. If a message is complete, call receive_callback_
  */
-void MavlinkSerialComm::parseOneByte(uint8_t byte)
+void JFiComm::parseOneByte(uint8_t byte)
 {
   if(mavlink_parse_char(MAVLINK_COMM_0, byte, &mav_msg_, &status_)) {
     // A message is fully parsed
@@ -185,7 +185,7 @@ void MavlinkSerialComm::parseOneByte(uint8_t byte)
 /**
  * @brief Register a callback for receiving MAVLink messages
  */
-void MavlinkSerialComm::setReceiveCallback(std::function<void(const mavlink_message_t &)> cb)
+void JFiComm::setReceiveCallback(std::function<void(const mavlink_message_t &)> cb)
 {
   receive_callback_ = cb;
 }
@@ -193,7 +193,7 @@ void MavlinkSerialComm::setReceiveCallback(std::function<void(const mavlink_mess
 /**
  * @brief A helper function to write raw data (not used in the main flow as we do direct write in checkSendBuffer)
  */
-void MavlinkSerialComm::writeData(const std::vector<uint8_t> & data)
+void JFiComm::writeData(const std::vector<uint8_t> & data)
 {
   std::lock_guard<std::mutex> lock(fd_mutex_);
   if(fd_ < 0) return;

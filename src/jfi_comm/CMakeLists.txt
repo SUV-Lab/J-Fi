@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(serial_comm)
+project(jfi_comm)
 
 include(ExternalProject)
 ExternalProject_Add(
@@ -30,17 +30,17 @@ include_directories(include)
 add_compile_options(-Wno-pedantic -Wno-address-of-packed-member)
 
 # Build library
-add_library(mavlink_serial_comm_lib
-  src/mavlink_serial_comm.cpp
+add_library(jfi_comm_lib
+  src/jfi_comm.cpp
 )
-add_dependencies(mavlink_serial_comm_lib
+add_dependencies(jfi_comm_lib
   mavlink
 )
-ament_target_dependencies(mavlink_serial_comm_lib
+ament_target_dependencies(jfi_comm_lib
   rclcpp
   std_msgs
 )
-target_include_directories(mavlink_serial_comm_lib PUBLIC
+target_include_directories(jfi_comm_lib PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>
 )
@@ -54,11 +54,11 @@ ament_target_dependencies(serial_comm_node
   std_msgs
 )
 target_link_libraries(serial_comm_node
-  mavlink_serial_comm_lib
+  jfi_comm_lib
 )
 
 install(TARGETS
-  mavlink_serial_comm_lib
+  jfi_comm_lib
   serial_comm_node
   DESTINATION lib/${PROJECT_NAME}
 )
