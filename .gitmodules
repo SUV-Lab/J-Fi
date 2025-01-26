@@ -1,6 +1,3 @@
-[submodule "src/jfi_transceiver/mavlink"]
-	path = src/jfi_transceiver/mavlink
-	url = https://github.com/mavlink/mavlink.git
 [submodule "src/serial_comm/mavlink"]
 	path = src/serial_comm/mavlink
 	url = https://github.com/mavlink/mavlink.git
