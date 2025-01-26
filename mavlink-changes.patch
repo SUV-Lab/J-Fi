@@ -33,10 +33,4 @@ index 77b1b672..08468cfd 100644
        <field type="uint16_t" name="vel" units="cm/s" invalid="UINT16_MAX">GPS ground speed. If unknown, set to: UINT16_MAX</field>
        <field type="int16_t" name="vn" units="cm/s">GPS velocity in north direction in earth-fixed NED frame</field>
        <field type="int16_t" name="ve" units="cm/s">GPS velocity in east direction in earth-fixed NED frame</field>
-diff --git a/pymavlink b/pymavlink
-index 9606dbc9..341d8892 160000
---- a/pymavlink
-+++ b/pymavlink
-@@ -1 +1 @@
--Subproject commit 9606dbc94ddc370cf7348407a7dc8d86453d51ea
-+Subproject commit 341d8892d443979bb467ff2619e82c61495fc3d5
+
