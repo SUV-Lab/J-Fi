@@ -9,6 +9,7 @@ ROS2 Serial Communication Library using MAVLink
 ```
 0. Clone repository
 - $ git clone --branch porofly --single-branch https://github.com/SUV-Lab/J-Fi.git
+- $ git submodule update --init --recursive
 1. Apply submodule patch
 - Move 'mavlink-changes.patch' file to mavlink submodule
 - $ cd J-Fi/src/serial_comm/mavlink
