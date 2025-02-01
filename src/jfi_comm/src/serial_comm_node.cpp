@@ -9,7 +9,7 @@ using namespace std::chrono_literals;
 /**
  * @class SerialCommNode
  * @brief ROS2 node example that uses the JFiComm library
- * 
+ *
  *  - Subscribes to /to_serial (String) -> sends data using the library
  *  - Periodically calls checkSendBuffer() and readMavlinkMessages() in a timer
  *  - When a MAVLink message is received, converts it to a ROS String and publishes to /from_serial
@@ -35,8 +35,8 @@ public:
     bool ok = jfi_comm_.openPort(port_name_, baud_rate_);
     if(!ok) {
       RCLCPP_ERROR(this->get_logger(),
-                   "Failed to open port: %s (baud=%d)",
-                   port_name_.c_str(), baud_rate_);
+                  "Failed to open port: %s (baud=%d)",
+                  port_name_.c_str(), baud_rate_);
       rclcpp::shutdown();
       return;
     }
@@ -59,19 +59,19 @@ public:
     // ---------------------------
     // /to_serial Subscribe
     sub_to_serial_ = this->create_subscription<std_msgs::msg::String>(
-      "to_serial", 
+      "to_serial",
       10,
       [this](const std_msgs::msg::String::SharedPtr msg) {
         jfi_comm_.send(msg->data);
-        RCLCPP_INFO(this->get_logger(), 
-                    "[SUB] to_serial: '%s' -> send()", 
+        RCLCPP_INFO(this->get_logger(),
+                    "[SUB] to_serial: '%s' -> send()",
                     msg->data.c_str());
       }
     );
 
     // /from_serial Publish
     pub_from_serial_ = this->create_publisher<std_msgs::msg::String>(
-      "from_serial", 
+      "from_serial",
       10
     );
 
@@ -79,14 +79,14 @@ public:
     // 5) Create a timer for sending buffer and reading data
     // ---------------------------
     main_timer_ = this->create_wall_timer(
-      50ms, 
+      50ms,
       [this]() {
         jfi_comm_.checkSendBuffer();
         jfi_comm_.readMavlinkMessages();
       }
     );
 
-    RCLCPP_INFO(this->get_logger(), 
+    RCLCPP_INFO(this->get_logger(),
                 "SerialCommNode started with port=%s, baud=%d",
                 port_name_.c_str(), baud_rate_);
   }

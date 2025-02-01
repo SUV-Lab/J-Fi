@@ -7,8 +7,8 @@ ExternalProject_Add(
     SOURCE_DIR ${CMAKE_SOURCE_DIR}/mavlink
     BINARY_DIR ${CMAKE_BINARY_DIR}/mavlink
     CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX}/mavlink
-               -DMAVLINK_DIALECT=common
-               -DMAVLINK_VERSION=2.0
+                -DMAVLINK_DIALECT=common
+                -DMAVLINK_VERSION=2.0
     INSTALL_DIR ${CMAKE_INSTALL_PREFIX}/mavlink
 )
 include_directories(${CMAKE_INSTALL_PREFIX}/mavlink/include)
