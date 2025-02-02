@@ -50,11 +50,6 @@ public:
   void send(const uint8_t tid, const std::vector<uint8_t> & data);
 
   /**
-   * @brief Check the send buffer and write one message at a time to the serial port
-   */
-  void checkSendBuffer();
-
-  /**
    * @brief Read bytes from the serial port, parse them as MAVLink
    *        Should be called periodically or by an event
    */

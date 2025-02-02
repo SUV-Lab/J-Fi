@@ -171,33 +171,12 @@ void JFiComm::send(const uint8_t tid, const std::vector<uint8_t> & data)
   uint8_t buffer[MAVLINK_MAX_PACKET_LEN];
   size_t len = mavlink_msg_to_send_buffer(buffer, &mavlink_msg);
 
+  // TODO: push to send_buffer_ to control the send rate
   writeData(std::vector<uint8_t>(buffer, buffer + len));
 
   std::cout << "PUSH" << std::endl;
 }
 
-/**
- * @brief Send one message at a time from send_buffer_ to the serial port
- */
-void JFiComm::checkSendBuffer()
-{
-  std::lock_guard<std::mutex> fd_lock(fd_mutex_);
-  if(fd_ < 0) {
-    return;
-  }
-
-  std::lock_guard<std::mutex> buf_lock(send_buffer_mutex_);
-  if(!send_buffer_.empty()) {
-    auto & front_data = send_buffer_.front();
-    ssize_t written = ::write(fd_, front_data.data(), front_data.size());
-
-    if(written < 0) {
-      std::cerr << "[ERROR] write failed: " << strerror(errno) << std::endl;
-    }
-
-    send_buffer_.erase(send_buffer_.begin());
-  }
-}
 
 /**
  * @brief A helper function to write raw data (not used in the main flow as we do direct write in checkSendBuffer)
