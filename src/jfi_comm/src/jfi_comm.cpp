@@ -5,6 +5,10 @@
 #include <cerrno>
 #include <iostream>
 #include <sys/ioctl.h>
+#include <rclcpp/rclcpp.hpp>
+#include <rclcpp/serialization.hpp>
+#include <vector>
+#include <memory>
 
 JFiComm::JFiComm()
 : fd_(-1)
@@ -16,6 +20,54 @@ JFiComm::JFiComm()
 JFiComm::~JFiComm()
 {
   closePort();
+}
+
+bool JFiComm::init(std::function<void(const int tid, const std::vector<uint8_t> &)> recv_cb, const std::string & port_name, int baud_rate)
+{
+  bool ret = false;
+
+  receive_callback_ = recv_cb;
+  ret = openPort(port_name, baud_rate);
+
+  mav_recv_thread_ = std::thread(&JFiComm::recvMavLoop, this);
+
+  return ret;
+}
+
+/**
+ * @brief Read bytes from the serial port and parse them as MAVLink
+ */
+void JFiComm::recvMavLoop()
+{
+  mavlink_message_t message;
+  mavlink_status_t status;
+
+  while (true) {
+    if(fd_ < 0) {
+      // sleep
+      continue;
+    }
+    std::vector<uint8_t> rx(256);
+    ssize_t n = ::read(fd_, rx.data(), rx.size());
+    for (int i = 0; i < n; ++i) {
+      if (mavlink_parse_char(MAVLINK_COMM_0, rx[i], &message, &status) == 1) {
+        switch (message.msgid) {
+          case MAVLINK_MSG_ID_JFI:
+            {
+            std::cout << "RECV" << std::endl;
+            mavlink_jfi_t jfi_msg_;
+            mavlink_msg_jfi_decode(&message, &jfi_msg_);
+            std::vector<uint8_t> data(jfi_msg_.data, jfi_msg_.data + jfi_msg_.len);
+            receive_callback_(jfi_msg_.tid, data);
+            }
+            break;
+          default:
+            std::cout <<"can not find msg ID" << std::endl;
+            break;
+        }
+      }
+    }
+  }
 }
 
 /**
@@ -30,7 +82,7 @@ bool JFiComm::openPort(const std::string & port_name, int baud_rate)
 
   fd_ = ::open(port_name.c_str(), O_RDWR | O_NOCTTY | O_SYNC);
   if(fd_ < 0) {
-    std::cerr << "[ERROR] Failed to open " << port_name 
+    std::cerr << "[ERROR] Failed to open " << port_name
               << ": " << strerror(errno) << std::endl;
     return false;
   }
@@ -45,20 +97,27 @@ bool JFiComm::openPort(const std::string & port_name, int baud_rate)
   }
 
   speed_t speed = B115200;
-  if(baud_rate == 9600) {
+  switch(baud_rate) {
+  case 9600:
     speed = B9600;
-  } else if(baud_rate == 19200) {
+    break;
+  case 19200:
     speed = B19200;
-  } else if(baud_rate == 38400) {
+    break;
+  case 38400:
     speed = B38400;
-  } else if(baud_rate == 57600) {
+    break;
+  case 57600:
     speed = B57600;
-  } else if(baud_rate == 115200) {
+    break;
+  case 115200:
     speed = B115200;
-  } else {
-    std::cerr << "[WARN] Unsupported baud rate: " << baud_rate 
+    break;
+  default:
+    std::cerr << "[WARN] Unsupported baud rate: " << baud_rate
               << ", defaulting to 115200" << std::endl;
     speed = B115200;
+    break;
   }
 
   cfsetospeed(&tty, speed);
@@ -100,23 +159,21 @@ void JFiComm::closePort()
 /**
  * @brief Convert topic_data into a MAVLink message (STATUSTEXT example) and push to send_buffer_
  */
-void JFiComm::send(const std::string & topic_data)
+void JFiComm::send(const uint8_t tid, const std::vector<uint8_t> & data)
 {
-  mavlink_message_t msg;
-  mavlink_statustext_t st;
-  memset(&st, 0, sizeof(st));
-  strncpy((char*)st.text, topic_data.c_str(), sizeof(st.text) - 1);
-  st.severity = MAV_SEVERITY_INFO;
-
-  mavlink_msg_statustext_encode(1, 200, &msg, &st);
-
+  // convert byte array to mavlink_message
+  mavlink_message_t mavlink_msg;
+  mavlink_jfi_t jfi_msg;
+  jfi_msg.tid = tid;
+  memcpy(jfi_msg.data, data.data(), data.size());
+  jfi_msg.len = data.size();
+  mavlink_msg_jfi_encode(1, 1, &mavlink_msg, &jfi_msg);
   uint8_t buffer[MAVLINK_MAX_PACKET_LEN];
-  size_t len = mavlink_msg_to_send_buffer(buffer, &msg);
+  size_t len = mavlink_msg_to_send_buffer(buffer, &mavlink_msg);
 
-  {
-    std::lock_guard<std::mutex> lock(send_buffer_mutex_);
-    send_buffer_.push_back(std::vector<uint8_t>(buffer, buffer + len));
-  }
+  writeData(std::vector<uint8_t>(buffer, buffer + len));
+
+  std::cout << "PUSH" << std::endl;
 }
 
 /**
@@ -140,54 +197,6 @@ void JFiComm::checkSendBuffer()
 
     send_buffer_.erase(send_buffer_.begin());
   }
-}
-
-/**
- * @brief Read bytes from the serial port and parse them as MAVLink
- */
-void JFiComm::readMavlinkMessages()
-{
-  std::lock_guard<std::mutex> lock(fd_mutex_);
-  if(fd_ < 0) {
-    return;
-  }
-
-  int bytes_available = 0;
-  if(ioctl(fd_, FIONREAD, &bytes_available) == -1) {
-    // If an error occurs, treat as 0
-    bytes_available = 0;
-  }
-
-  if(bytes_available > 0) {
-    std::vector<uint8_t> rx(bytes_available);
-    ssize_t n = ::read(fd_, rx.data(), rx.size());
-    if(n > 0) {
-      for(ssize_t i=0; i<n; i++){
-        parseOneByte(rx[i]);
-      }
-    }
-  }
-}
-
-/**
- * @brief Parse MAVLink byte by byte. If a message is complete, call receive_callback_
- */
-void JFiComm::parseOneByte(uint8_t byte)
-{
-  if(mavlink_parse_char(MAVLINK_COMM_0, byte, &mav_msg_, &status_)) {
-    // A message is fully parsed
-    if(receive_callback_) {
-      receive_callback_(mav_msg_);
-    }
-  }
-}
-
-/**
- * @brief Register a callback for receiving MAVLink messages
- */
-void JFiComm::setReceiveCallback(std::function<void(const mavlink_message_t &)> cb)
-{
-  receive_callback_ = cb;
 }
 
 /**
