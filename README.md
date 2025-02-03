@@ -36,4 +36,6 @@ For real environment,
 ros2 launch jfi_comm serial_comm_node.launch.py
 ```
 (Optional) Example Launch Configuration
-- $ ros2 launch jfi_comm serial_comm_node.launch.py port_name:=/dev/ttyUSB0 baud_rate:=115200
+```
+ros2 launch jfi_comm serial_comm_node.launch.py port_name:=/dev/ttyUSB0 baud_rate:=115200
+```
