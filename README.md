@@ -14,8 +14,6 @@ git submodule update --init --recursive
 ### Build
 ```
 colcon build
-```
-```
 source install/setup.bash
 ```
 
