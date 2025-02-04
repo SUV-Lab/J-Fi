@@ -10,9 +10,8 @@ using namespace std::chrono_literals;
  * @class SerialCommNode
  * @brief ROS2 node example that uses the JFiComm library
  *
- *  - Subscribes to /to_serial (String) -> sends data using the library
- *  - Periodically calls checkSendBuffer() and readMavlinkMessages() in a timer
- *  - When a MAVLink message is received, converts it to a ROS String and publishes to /from_serial
+ *  - Subscribes to /to_serial -> sends data using the library
+ *  - When a MAVLink message is received, converts it and publishes to /from_serial
  */
 class SerialCommNode : public rclcpp::Node
 {

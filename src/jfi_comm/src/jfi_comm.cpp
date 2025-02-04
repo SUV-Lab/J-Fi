@@ -142,7 +142,7 @@ bool JFiComm::openPort(const std::string & port_name, int baud_rate)
   tcflush(fd_, TCIOFLUSH);
 
   std::cout << "[INFO] Opened port " << port_name 
-            << " at " << baud_rate << " bps (8N1)" << std::endl;
+            << " at " << baud_rate << " bps" << std::endl;
   return true;
 }
 

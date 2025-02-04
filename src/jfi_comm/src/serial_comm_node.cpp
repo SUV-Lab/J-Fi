@@ -19,7 +19,6 @@ SerialCommNode::SerialCommNode()
     std::bind(&SerialCommNode::handleMessage, this, std::placeholders::_1, std::placeholders::_2),
     port_name_, baud_rate_
   );
-  RCLCPP_INFO(this->get_logger(), "Opened port: %s (baud=%d)", port_name_.c_str(), baud_rate_);
 
   // create subscriptions
   sub_to_serial_ = this->create_subscription<std_msgs::msg::String>(
@@ -33,10 +32,6 @@ SerialCommNode::SerialCommNode()
 
   // create publishers
   pub_from_serial_ = this->create_publisher<std_msgs::msg::String>("from_serial", 10);
-
-  RCLCPP_INFO(this->get_logger(),
-              "SerialCommNode started with port=%s, baud=%d",
-              port_name_.c_str(), baud_rate_);
 }
 
 SerialCommNode::~SerialCommNode()

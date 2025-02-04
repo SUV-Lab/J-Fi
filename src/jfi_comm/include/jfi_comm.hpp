@@ -24,10 +24,9 @@
  * @class JFiComm
  * @brief A library that implements serial communication with MAVLink
  *
- * - openPort/closePort: Open and close the serial port
+ * - openPort/closePort: Open and close the serial port.
  * - send: Convert topic data into a MAVLink message, then store in the send buffer
  * - recvMavLoop: Read bytes from the serial port and parse them as MAVLink
- * - When a message is fully parsed, call the callback function (set via setReceiveCallback)
  */
 class JFiComm
 {
@@ -37,6 +36,10 @@ public:
 
   /**
    * @brief init JFi Communication
+   * @param recv_cb Callback to be called upon receiving a message.
+   * @param port_name Serial port name (e.g. "/dev/ttyUSB0").
+   * @param baud_rate Baud rate (e.g. 115200).
+   * @return true if initialization is successful.
    */
   bool init(std::function<void(const int tid, const std::vector<uint8_t> &)> recv_cb, const std::string & port_name, int baud_rate);
 
@@ -46,8 +49,9 @@ public:
   void closePort();
 
   /**
-   * @brief Convert topic data to a MAVLink message and store it in the send buffer
-   * @param topic_data For example, a string from a ROS topic
+   * @brief Convert topic data into a MAVLink message and send it immediately.
+   * @param tid Topic/message ID.
+   * @param data Data to be sent.
    */
   void send(const uint8_t tid, const std::vector<uint8_t> & data);
 
