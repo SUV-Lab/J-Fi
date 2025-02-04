@@ -5,16 +5,19 @@
 #include <vector>
 #include <mutex>
 #include <functional>
+#include <thread>
+#include <memory>
+#include <cstring>
+
 #include <termios.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
-#include <thread>
-#include <memory>
-#include <cstring>
+
 #include <rclcpp/serialized_message.hpp>
 #include <rclcpp/serialization.hpp>
+
 #include "mavlink/jfi/mavlink.h"
 
 /**
@@ -23,7 +26,6 @@
  *
  * - openPort/closePort: Open and close the serial port
  * - send: Convert topic data into a MAVLink message, then store in the send buffer
- * - checkSendBuffer: Send data from the buffer to the serial port one by one
  * - recvMavLoop: Read bytes from the serial port and parse them as MAVLink
  * - When a message is fully parsed, call the callback function (set via setReceiveCallback)
  */
