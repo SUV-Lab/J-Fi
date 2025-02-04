@@ -6,7 +6,7 @@ J-Fi is ROS2 Serial Communication Library using MAVLink
 
 ### Clone repository
 ```
-git clone --branch stmoon --single-branch https://github.com/SUV-Lab/J-Fi.git
+git clone https://github.com/SUV-Lab/J-Fi.git
 ```
 ```
 cd J-Fi
