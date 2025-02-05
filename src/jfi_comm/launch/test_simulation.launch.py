@@ -59,7 +59,7 @@ def launch_setup(context, *args, **kwargs):
         output='screen',
         parameters=[{'publish_rate': 1.0}],
         remappings=[
-            ('chatter', '/hello_topic')
+            ('chatter', '/to_serial')
         ],
         arguments=['--ros-args', '--log-level', 'info']
     )
