@@ -43,10 +43,13 @@ public:
    * @param recv_cb Callback function to be called when a message is received.
    * @param port_name Serial port name (e.g. "/dev/ttyUSB0").
    * @param baud_rate Baud rate (e.g. 115200).
+   * @param system_id MAVLink system ID (default: 1).
+   * @param component_id MAVLink component ID (default: 1).
    * @return true if initialization is successful.
    */
   bool init(std::function<void(const int tid, const std::vector<uint8_t> &)> recv_cb,
-            const std::string & port_name, int baud_rate);
+            const std::string & port_name, int baud_rate,
+            uint8_t system_id = 1, uint8_t component_id = 1);
 
   /**
    * @brief Close the serial port.
@@ -141,6 +144,10 @@ private:
 
   // Flag to control thread termination.
   std::atomic<bool> running_;
+
+  // Parameterized system and component IDs.
+  uint8_t system_id_;
+  uint8_t component_id_;
 };
 
 #endif  // JFI_COMM_HPP

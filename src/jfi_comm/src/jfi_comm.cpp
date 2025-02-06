@@ -11,7 +11,9 @@
 
 JFiComm::JFiComm()
 : fd_(-1),
-  running_(false)
+  running_(false),
+  system_id_(1),
+  component_id_(1)
 {
 }
 
@@ -26,9 +28,13 @@ JFiComm::~JFiComm()
 }
 
 bool JFiComm::init(std::function<void(const int tid, const std::vector<uint8_t> &)> recv_cb,
-                   const std::string & port_name, int baud_rate)
+                   const std::string & port_name, int baud_rate,
+                   uint8_t system_id, uint8_t component_id)
 {
   receive_callback_ = recv_cb;
+  system_id_ = system_id;
+  component_id_ = component_id;
+  
   bool ret = openPort(port_name, baud_rate);
   
   if(ret) {
@@ -180,7 +186,8 @@ void JFiComm::send(const uint8_t tid, const std::vector<uint8_t> & data)
   std::memcpy(jfi_msg.data, data.data(), copy_len);
   jfi_msg.len = copy_len;
   
-  mavlink_msg_jfi_encode(1, 1, &mavlink_msg, &jfi_msg);
+  // Use the parameterized system_id_ and component_id_.
+  mavlink_msg_jfi_encode(system_id_, component_id_, &mavlink_msg, &jfi_msg);
   
   uint8_t buffer[MAVLINK_MAX_PACKET_LEN];
   size_t len = mavlink_msg_to_send_buffer(buffer, &mavlink_msg);

@@ -7,16 +7,21 @@ SerialCommNode::SerialCommNode()
   // Declare and get parameters.
   this->declare_parameter<std::string>("port_name", "/dev/ttyUSB0");
   this->declare_parameter<int>("baud_rate", 115200);
+  this->declare_parameter<int>("system_id", 1);
+  this->declare_parameter<int>("component_id", 1);
+  
   port_name_ = this->get_parameter("port_name").as_string();
   baud_rate_ = this->get_parameter("baud_rate").as_int();
+  system_id_ = static_cast<uint8_t>(this->get_parameter("system_id").as_int());
+  component_id_ = static_cast<uint8_t>(this->get_parameter("component_id").as_int());
 
-  RCLCPP_INFO(this->get_logger(), "Starting SerialCommNode with port: %s, baud_rate: %d",
-              port_name_.c_str(), baud_rate_);
+  RCLCPP_INFO(this->get_logger(), "Starting SerialCommNode with port: %s, baud_rate: %d, system_id: %d, component_id: %d",
+              port_name_.c_str(), baud_rate_, system_id_, component_id_);
 
   // Initialize JFiComm.
   if (!jfi_comm_.init(
         std::bind(&SerialCommNode::handleMessage, this, std::placeholders::_1, std::placeholders::_2),
-        port_name_, baud_rate_)) {
+        port_name_, baud_rate_, system_id_, component_id_)) {
     RCLCPP_ERROR(this->get_logger(), "Failed to initialize JFiComm on port: %s", port_name_.c_str());
   } else {
     RCLCPP_INFO(this->get_logger(), "JFiComm initialized successfully.");

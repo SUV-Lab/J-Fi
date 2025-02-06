@@ -42,6 +42,8 @@ private:
   // Parameters
   std::string   port_name_;
   int           baud_rate_;
+  uint8_t       system_id_;
+  uint8_t       component_id_;
 
   // ROS subscriptions and publishers
   rclcpp::Subscription<std_msgs::msg::String>::SharedPtr sub_to_serial_string;
@@ -49,7 +51,6 @@ private:
 
   rclcpp::Publisher<std_msgs::msg::String>::SharedPtr pub_from_serial_string_;
   rclcpp::Publisher<std_msgs::msg::Int32>::SharedPtr pub_from_serial_int_;
-  rclcpp::TimerBase::SharedPtr main_timer_;
 };
 
 #endif  // SERIAL_COMM_NODE_HPP
