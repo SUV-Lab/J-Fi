@@ -1,5 +1,18 @@
 # J-Fi
-J-Fi is ROS2 Serial Communication Library using MAVLink
+
+J-Fi is a ROS2 Serial Communication Library using MAVLink.
+It provides functionality for encoding, transmitting, and receiving MAVLink messages, and supports ROS2 message serialization/deserialization.
+
+## Features
+
+- **Serial Port Management**: Opens and closes the serial port with configurable parameters.
+- **MAVLink Message Handling**: Encodes ROS2 messages into MAVLink messages and decodes received MAVLink messages back into ROS2 messages.
+
+## Prerequisites
+
+- **ROS2**: Tested on ROS2 Humble (or specify your version).
+- **MAVLink**: Ensure that the required MAVLink libraries are installed.
+- **socat**: (For simulation) Used to create virtual serial ports.
 
 
 ## Installation
