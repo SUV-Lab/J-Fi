@@ -1,3 +1,6 @@
+#ifndef SERIAL_COMM_NODE_HPP
+#define SERIAL_COMM_NODE_HPP
+
 #include <chrono>
 #include <rclcpp/rclcpp.hpp>
 
@@ -40,7 +43,7 @@ private:
   std::string   port_name_;
   int           baud_rate_;
 
-  // ROS
+  // ROS subscriptions and publishers
   rclcpp::Subscription<std_msgs::msg::String>::SharedPtr sub_to_serial_string;
   rclcpp::Subscription<std_msgs::msg::Int32>::SharedPtr sub_to_serial_int;
 
@@ -48,3 +51,5 @@ private:
   rclcpp::Publisher<std_msgs::msg::Int32>::SharedPtr pub_from_serial_int_;
   rclcpp::TimerBase::SharedPtr main_timer_;
 };
+
+#endif  // SERIAL_COMM_NODE_HPP

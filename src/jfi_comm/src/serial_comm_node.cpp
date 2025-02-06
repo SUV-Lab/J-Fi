@@ -22,16 +22,16 @@ SerialCommNode::SerialCommNode()
     RCLCPP_INFO(this->get_logger(), "JFiComm initialized successfully.");
   }
 
-  // Create subscription for outgoing messages to serial.
+  // Create subscriptions for outgoing messages.
   sub_to_serial_string = this->create_subscription<std_msgs::msg::String>(
     "to_serial_string", 10,
     [this](const std_msgs::msg::String::SharedPtr msg) {
       auto serialized_data = jfi_comm_.serialize_message(msg);
       if (!serialized_data.empty()) {
         jfi_comm_.send(TID_STRING, serialized_data);
-        RCLCPP_INFO(this->get_logger(), "Sent message via serial: %s", msg->data.c_str());
+        RCLCPP_INFO(this->get_logger(), "Sent string message via serial: %s", msg->data.c_str());
       } else {
-        RCLCPP_WARN(this->get_logger(), "Failed to serialize message for serial transmission.");
+        RCLCPP_WARN(this->get_logger(), "Failed to serialize string message for serial transmission.");
       }
     }
   );
@@ -41,14 +41,14 @@ SerialCommNode::SerialCommNode()
       auto serialized_data = jfi_comm_.serialize_message(msg);
       if (!serialized_data.empty()) {
         jfi_comm_.send(TID_INT, serialized_data);
-        RCLCPP_INFO(this->get_logger(), "Sent message via serial: %d", msg->data);
+        RCLCPP_INFO(this->get_logger(), "Sent int message via serial: %d", msg->data);
       } else {
-        RCLCPP_WARN(this->get_logger(), "Failed to serialize message for serial transmission.");
+        RCLCPP_WARN(this->get_logger(), "Failed to serialize int message for serial transmission.");
       }
     }
   );
 
-  // Create publisher for incoming messages from serial.
+  // Create publishers for incoming messages.
   pub_from_serial_string_ = this->create_publisher<std_msgs::msg::String>("from_serial_string", 10);
   pub_from_serial_int_ = this->create_publisher<std_msgs::msg::Int32>("from_serial_int", 10);
 }
@@ -76,7 +76,6 @@ void SerialCommNode::handleMessage(const int tid, const std::vector<uint8_t> & d
     case TID_INT:
     {
       try {
-        // Deserialize the incoming data as an Int32 message.
         std_msgs::msg::Int32 int_msg = jfi_comm_.deserialize_message<std_msgs::msg::Int32>(data);
         pub_from_serial_int_->publish(int_msg);
         RCLCPP_INFO(this->get_logger(), "Received and published TID_INT message: %d", int_msg.data);

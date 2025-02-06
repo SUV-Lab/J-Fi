@@ -3,7 +3,7 @@
 #include <cstring>
 #include <stdexcept>
 #include <cerrno>
-#include <iostream>
+#include <rclcpp/rclcpp.hpp>
 #include <sys/ioctl.h>
 #include <chrono>
 #include <thread>
@@ -35,7 +35,7 @@ bool JFiComm::init(std::function<void(const int tid, const std::vector<uint8_t> 
     running_ = true;
     mav_recv_thread_ = std::thread(&JFiComm::recvMavLoop, this);
   } else {
-    std::cerr << "[ERROR] Failed to open port. Receiver thread not started." << std::endl;
+    RCLCPP_ERROR(rclcpp::get_logger("JFiComm"), "Failed to open port. Receiver thread not started.");
   }
   
   return ret;
@@ -49,7 +49,7 @@ void JFiComm::recvMavLoop()
   while (running_) {
     {
       std::lock_guard<std::mutex> lock(fd_mutex_);
-      if(fd_ < 0) {
+      if (fd_ < 0) {
         // If port is not open, wait briefly.
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
         continue;
@@ -59,7 +59,7 @@ void JFiComm::recvMavLoop()
     std::vector<uint8_t> rx(256);
     ssize_t n = ::read(fd_, rx.data(), rx.size());
     if (n < 0) {
-      std::cerr << "[ERROR] read() failed: " << strerror(errno) << std::endl;
+      RCLCPP_ERROR(rclcpp::get_logger("JFiComm"), "read() failed: %s", strerror(errno));
       // On error, wait briefly before retrying.
       std::this_thread::sleep_for(std::chrono::milliseconds(10));
       continue;
@@ -72,7 +72,7 @@ void JFiComm::recvMavLoop()
     for (ssize_t i = 0; i < n; ++i) {
       if (mavlink_parse_char(MAVLINK_COMM_0, rx[i], &message, &status) == 1) {
         if (message.msgid == MAVLINK_MSG_ID_JFI) {
-          std::cout << "RECV" << std::endl;
+          RCLCPP_INFO(rclcpp::get_logger("JFiComm"), "RECV");
           mavlink_jfi_t jfi_msg_;
           mavlink_msg_jfi_decode(&message, &jfi_msg_);
           std::vector<uint8_t> data(jfi_msg_.data, jfi_msg_.data + jfi_msg_.len);
@@ -80,7 +80,7 @@ void JFiComm::recvMavLoop()
             receive_callback_(jfi_msg_.tid, data);
           }
         } else {
-          std::cout << "Unknown message ID: " << message.msgid << std::endl;
+          RCLCPP_WARN(rclcpp::get_logger("JFiComm"), "Unknown message ID: %d", message.msgid);
         }
       }
     }
@@ -90,28 +90,28 @@ void JFiComm::recvMavLoop()
 bool JFiComm::openPort(const std::string & port_name, int baud_rate)
 {
   std::lock_guard<std::mutex> lock(fd_mutex_);
-  if(fd_ >= 0) {
+  if (fd_ >= 0) {
     return true;
   }
 
   fd_ = ::open(port_name.c_str(), O_RDWR | O_NOCTTY | O_SYNC);
-  if(fd_ < 0) {
-    std::cerr << "[ERROR] Failed to open " << port_name
-              << ": " << strerror(errno) << std::endl;
+  if (fd_ < 0) {
+    RCLCPP_ERROR(rclcpp::get_logger("JFiComm"), "Failed to open %s: %s", port_name.c_str(), strerror(errno));
     return false;
   }
 
   struct termios tty;
   memset(&tty, 0, sizeof(tty));
-  if(tcgetattr(fd_, &tty) != 0) {
-    std::cerr << "[ERROR] tcgetattr: " << strerror(errno) << std::endl;
+  if (tcgetattr(fd_, &tty) != 0) {
+    RCLCPP_ERROR(rclcpp::get_logger("JFiComm"), "tcgetattr failed: %s", strerror(errno));
     ::close(fd_);
     fd_ = -1;
     return false;
   }
 
+  // Set baud rate.
   speed_t speed = B115200;
-  switch(baud_rate) {
+  switch (baud_rate) {
     case 9600:
       speed = B9600;
       break;
@@ -128,8 +128,7 @@ bool JFiComm::openPort(const std::string & port_name, int baud_rate)
       speed = B115200;
       break;
     default:
-      std::cerr << "[WARN] Unsupported baud rate: " << baud_rate
-                << ", defaulting to 115200" << std::endl;
+      RCLCPP_WARN(rclcpp::get_logger("JFiComm"), "Unsupported baud rate: %d, defaulting to 115200", baud_rate);
       speed = B115200;
       break;
   }
@@ -138,16 +137,16 @@ bool JFiComm::openPort(const std::string & port_name, int baud_rate)
   cfsetispeed(&tty, speed);
 
   // Configure for 8N1.
-  tty.c_cflag = (tty.c_cflag & ~CSIZE) | CS8; // 8 bits per byte.
-  tty.c_cflag &= ~PARENB;  // No parity.
-  tty.c_cflag &= ~CSTOPB;  // 1 stop bit.
-  tty.c_cflag |= CLOCAL | CREAD; // Enable receiver, local mode.
+  tty.c_cflag = (tty.c_cflag & ~CSIZE) | CS8;
+  tty.c_cflag &= ~PARENB;
+  tty.c_cflag &= ~CSTOPB;
+  tty.c_cflag |= CLOCAL | CREAD;
 
   // Set raw mode.
   cfmakeraw(&tty);
 
-  if(tcsetattr(fd_, TCSANOW, &tty) != 0) {
-    std::cerr << "[ERROR] tcsetattr: " << strerror(errno) << std::endl;
+  if (tcsetattr(fd_, TCSANOW, &tty) != 0) {
+    RCLCPP_ERROR(rclcpp::get_logger("JFiComm"), "tcsetattr failed: %s", strerror(errno));
     ::close(fd_);
     fd_ = -1;
     return false;
@@ -155,18 +154,17 @@ bool JFiComm::openPort(const std::string & port_name, int baud_rate)
 
   tcflush(fd_, TCIOFLUSH);
 
-  std::cout << "[INFO] Opened port " << port_name 
-            << " at " << baud_rate << " bps" << std::endl;
+  RCLCPP_INFO(rclcpp::get_logger("JFiComm"), "Opened port %s at %d bps", port_name.c_str(), baud_rate);
   return true;
 }
 
 void JFiComm::closePort()
 {
   std::lock_guard<std::mutex> lock(fd_mutex_);
-  if(fd_ >= 0) {
+  if (fd_ >= 0) {
     ::close(fd_);
     fd_ = -1;
-    std::cout << "[INFO] Port closed" << std::endl;
+    RCLCPP_INFO(rclcpp::get_logger("JFiComm"), "Port closed");
   }
 }
 
@@ -190,16 +188,17 @@ void JFiComm::send(const uint8_t tid, const std::vector<uint8_t> & data)
   // Send immediately (future improvements may add rate control via a send buffer).
   writeData(std::vector<uint8_t>(buffer, buffer + len));
   
-  std::cout << "PUSH" << std::endl;
+  RCLCPP_INFO(rclcpp::get_logger("JFiComm"), "PUSH");
 }
 
 void JFiComm::writeData(const std::vector<uint8_t> & data)
 {
   std::lock_guard<std::mutex> lock(fd_mutex_);
-  if(fd_ < 0) return;
+  if (fd_ < 0)
+    return;
 
   ssize_t written = ::write(fd_, data.data(), data.size());
-  if(written < 0) {
-    std::cerr << "[ERROR] writeData failed: " << strerror(errno) << std::endl;
+  if (written < 0) {
+    RCLCPP_ERROR(rclcpp::get_logger("JFiComm"), "writeData failed: %s", strerror(errno));
   }
 }

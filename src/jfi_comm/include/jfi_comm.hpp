@@ -16,6 +16,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+#include <rclcpp/rclcpp.hpp>
 #include <rclcpp/serialized_message.hpp>
 #include <rclcpp/serialization.hpp>
 
@@ -81,7 +82,8 @@ public:
     // Convert the serialized message to a byte array.
     std::vector<uint8_t> data(
         serialized_msg.get_rcl_serialized_message().buffer,
-        serialized_msg.get_rcl_serialized_message().buffer + serialized_msg.get_rcl_serialized_message().buffer_length
+        serialized_msg.get_rcl_serialized_message().buffer +
+          serialized_msg.get_rcl_serialized_message().buffer_length
     );
     return data;
   }
