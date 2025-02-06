@@ -14,7 +14,6 @@ It provides functionality for encoding, transmitting, and receiving MAVLink mess
 - **MAVLink**: Ensure that the required MAVLink libraries are installed.
 - **socat**: (For simulation) Used to create virtual serial ports.
 
-
 ## Installation
 
 ### Clone repository
@@ -30,19 +29,28 @@ colcon build
 source install/setup.bash
 ```
 
-
 ## Run
 
-For simulation test,
+### Parameters
+
+- port_name: Serial port device path (default: /dev/ttyUSB0).
+- baud_rate: Baud rate for serial communication (default: 115200).
+- system_id: MAVLink system ID (default: 1).
+- component_id: MAVLink component ID (default: 1).
+
+### For simulation test,
+Use virtual serial ports via socat:
 ```
 ros2 launch  jfi_comm test_simulation.launch.py
 ```
 
-For real environment,
+### For real environment,
+Use real serial ports:
 ```
 ros2 launch jfi_comm serial_comm_node.launch.py
 ```
-(Optional) Example Launch Configuration
+(Optional) Example with custom configuration:
 ```
-ros2 launch jfi_comm serial_comm_node.launch.py port_name:=/dev/ttyUSB0 baud_rate:=115200
+ros2 launch jfi_comm serial_comm_node.launch.py port_name:=/dev/ttyUSB1 baud_rate:=115200 system_id:=2 component_id:=2
 ```
+
