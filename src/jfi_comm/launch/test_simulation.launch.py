@@ -21,14 +21,13 @@ from launch.actions import (
 from launch.event_handlers import OnProcessStart, OnProcessExit
 
 def launch_setup(context, *args, **kwargs):
-
-    # socat PTY,link=/dev/virtual_tty1 PTY,link=/dev/virtual_tty2
+    # Start socat to create virtual PTYs.
     socat_process = ExecuteProcess(
         cmd=[FindExecutable(name='socat'), 'PTY,link=/tmp/virtual_tty1', 'PTY,link=/tmp/virtual_tty2'],
         output='screen',
     )
 
-    # Define the Node
+    # Define the publisher node (pub_comm_node)
     pub_comm_node = Node(
         package='jfi_comm',
         executable='serial_comm_node',
@@ -36,11 +35,13 @@ def launch_setup(context, *args, **kwargs):
         output='screen',
         parameters=[
             {'port_name': '/tmp/virtual_tty1'},
-            {'baud_rate': 57600}
+            {'baud_rate': 57600},
+            {'system_id': 1},
+            {'component_id': 1}
         ]
     )
 
-    # Define the Node
+    # Define the subscriber node (sub_comm_node)
     sub_comm_node = Node(
         package='jfi_comm',
         executable='serial_comm_node',
@@ -48,10 +49,13 @@ def launch_setup(context, *args, **kwargs):
         output='screen',
         parameters=[
             {'port_name': '/tmp/virtual_tty2'},
-            {'baud_rate': 57600}
+            {'baud_rate': 57600},
+            {'system_id': 2},
+            {'component_id': 2}
         ]
     )
 
+    # Define the talker node (publishes std_msgs/String)
     topic_pub = Node(
         package='demo_nodes_cpp',
         executable='talker',
@@ -59,7 +63,7 @@ def launch_setup(context, *args, **kwargs):
         output='screen',
         parameters=[{'publish_rate': 1.0}],
         remappings=[
-            ('chatter', '/to_serial')
+            ('chatter', '/to_serial_string')
         ],
         arguments=['--ros-args', '--log-level', 'info']
     )
@@ -75,5 +79,4 @@ def launch_setup(context, *args, **kwargs):
 
 def generate_launch_description():
     declared_arguments = []
-
-    return LaunchDescription( declared_arguments + [OpaqueFunction(function=launch_setup)])
+    return LaunchDescription(declared_arguments + [OpaqueFunction(function=launch_setup)])

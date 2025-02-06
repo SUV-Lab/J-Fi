@@ -16,9 +16,22 @@ def generate_launch_description():
         default_value='115200',
         description='Serial port baud rate'
     )
+    system_id_arg = DeclareLaunchArgument(
+        'system_id',
+        default_value='1',
+        description='MAVLink system ID'
+    )
+    component_id_arg = DeclareLaunchArgument(
+        'component_id',
+        default_value='1',
+        description='MAVLink component ID'
+    )
 
+    # Get launch configurations.
     port_name = LaunchConfiguration('port_name')
     baud_rate = LaunchConfiguration('baud_rate')
+    system_id = LaunchConfiguration('system_id')
+    component_id = LaunchConfiguration('component_id')
 
     # Define the Node
     comm_node = Node(
@@ -28,12 +41,16 @@ def generate_launch_description():
         output='screen',
         parameters=[
             {'port_name': port_name},
-            {'baud_rate': baud_rate}
+            {'baud_rate': baud_rate},
+            {'system_id': system_id},
+            {'component_id': component_id}
         ]
     )
 
     return LaunchDescription([
         port_arg,
         baud_arg,
+        system_id_arg,
+        component_id_arg,
         comm_node
     ])
