@@ -1,6 +1,8 @@
 #include <chrono>
 #include <rclcpp/rclcpp.hpp>
+
 #include <std_msgs/msg/string.hpp>
+#include <std_msgs/msg/int32.hpp>
 
 #include "jfi_comm.hpp"
 
@@ -17,8 +19,8 @@ class SerialCommNode : public rclcpp::Node
 {
 public:
   enum TID{
-    TID_HELLO = 1,
-    TID_TEST = 2,
+    TID_STRING = 1,
+    TID_INT = 2,
   };
 
 public:
@@ -39,7 +41,10 @@ private:
   int           baud_rate_;
 
   // ROS
-  rclcpp::Subscription<std_msgs::msg::String>::SharedPtr sub_to_serial_;
-  rclcpp::Publisher<std_msgs::msg::String>::SharedPtr pub_from_serial_;
+  rclcpp::Subscription<std_msgs::msg::String>::SharedPtr sub_to_serial_string;
+  rclcpp::Subscription<std_msgs::msg::Int32>::SharedPtr sub_to_serial_int;
+
+  rclcpp::Publisher<std_msgs::msg::String>::SharedPtr pub_from_serial_string_;
+  rclcpp::Publisher<std_msgs::msg::Int32>::SharedPtr pub_from_serial_int_;
   rclcpp::TimerBase::SharedPtr main_timer_;
 };
