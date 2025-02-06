@@ -9,6 +9,7 @@
 #include <memory>
 #include <cstring>
 #include <atomic>
+#include <array>
 
 #include <termios.h>
 #include <sys/types.h>
@@ -26,7 +27,6 @@
  * @class JFiComm
  * @brief A library that implements serial communication using MAVLink.
  *
- * Features:
  * - openPort/closePort: Open and close the serial port.
  * - send: Encode topic data into a MAVLink message and send it.
  * - recvMavLoop: Read bytes from the serial port and parse them as MAVLink.
@@ -38,13 +38,20 @@ public:
   JFiComm();
   ~JFiComm();
 
+  // Delete copy and move operations to avoid resource duplication.
+  JFiComm(const JFiComm&) = delete;
+  JFiComm& operator=(const JFiComm&) = delete;
+  JFiComm(JFiComm&&) = delete;
+  JFiComm& operator=(JFiComm&&) = delete;
+
   /**
-   * @brief Initialize JFi Communication.
-   * @param recv_cb Callback function to be called when a message is received.
-   * @param port_name Serial port name (e.g. "/dev/ttyUSB0").
-   * @param baud_rate Baud rate (e.g. 115200).
-   * @param system_id MAVLink system ID (default: 1).
-   * @param component_id MAVLink component ID (default: 1).
+   * @brief Initialize serial communication.
+   *
+   * @param recv_cb Callback function to handle received messages.
+   * @param port_name Serial port name (e.g., "/dev/ttyUSB0").
+   * @param baud_rate Baud rate (e.g., 115200).
+   * @param system_id MAVLink system ID.
+   * @param component_id MAVLink component ID.
    * @return true if initialization is successful.
    */
   bool init(std::function<void(const int tid, const std::vector<uint8_t> &)> recv_cb,
@@ -57,23 +64,26 @@ public:
   void closePort();
 
   /**
-   * @brief Encode topic data into a MAVLink message and send it immediately.
-   * @param tid Topic/message ID.
+   * @brief Encode and send a MAVLink message.
+   *
+   * @param tid Message type identifier.
    * @param data Data to be sent.
    */
-  void send(const uint8_t tid, const std::vector<uint8_t> & data);
+  void send(const uint8_t tid, const std::vector<uint8_t>& data);
 
   /**
-   * @brief Read bytes from the serial port and parse them as MAVLink.
-   * This function is run in a separate thread.
+   * @brief Continuously read from the serial port and parse MAVLink messages.
+   *        This function is designed to run in a separate thread.
    */
   void recvMavLoop();
 
   /**
    * @brief Serialize a ROS2 topic message.
    * Example: auto serialized_data = serialize_message(image_msg);
-   * @param msg Shared pointer to the message.
-   * @return Byte array containing the serialized message.
+   *
+   * @tparam T Message type.
+   * @param msg Shared pointer to the ROS2 message.
+   * @return Serialized message.
    */
   template <typename T>
   std::vector<uint8_t> serialize_message(const std::shared_ptr<T>& msg)
@@ -94,8 +104,10 @@ public:
   /**
    * @brief Deserialize a byte array into a ROS2 message.
    * Example: auto deserialized_msg = deserialize_message<geometry_msgs::msg::Twist>(serialized_data);
+   *
+   * @tparam T Message type.
    * @param data Serialized data.
-   * @return The deserialized message.
+   * @return Deserialized message.
    */
   template <typename T>
   T deserialize_message(const std::vector<uint8_t>& data)
@@ -104,11 +116,9 @@ public:
     rclcpp::Serialization<T> serializer;
     rclcpp::SerializedMessage serialized_msg;
 
-    // Allocate memory for the serialized message.
     serialized_msg.reserve(data.size());
     serialized_msg.get_rcl_serialized_message().buffer_length = data.size();
 
-    // Copy data into the serialized message buffer.
     std::memcpy(
         serialized_msg.get_rcl_serialized_message().buffer,
         data.data(),
@@ -122,32 +132,33 @@ public:
 private:
   /**
    * @brief Open the serial port.
-   * @param port_name e.g. "/dev/ttyUSB0"
-   * @param baud_rate e.g. 115200
-   * @return true if the port is opened successfully, false otherwise.
+   *
+   * @param port_name Serial port name.
+   * @param baud_rate Baud rate.
+   * @return true if the port is successfully opened.
    */
   bool openPort(const std::string & port_name, int baud_rate);
 
   /**
-   * @brief Helper function to write raw data to the serial port.
-   * @param data Binary data to be sent.
+   * @brief Write data to the serial port.
+   *
+   * @param data Data to send.
    */
   void writeData(const std::vector<uint8_t> & data);
 
 private:
   int fd_;
-
   std::thread mav_recv_thread_;
   std::mutex fd_mutex_;
-
   std::function<void(const int tid, const std::vector<uint8_t> &)> receive_callback_;
-
-  // Flag to control thread termination.
   std::atomic<bool> running_;
 
-  // Parameterized system and component IDs.
+  // Parameterized MAVLink system and component IDs.
   uint8_t system_id_;
   uint8_t component_id_;
+
+  // Fixed buffer for receiving data to minimize dynamic allocations.
+  std::array<uint8_t, 256> rx_buffer_;
 };
 
 #endif  // JFI_COMM_HPP

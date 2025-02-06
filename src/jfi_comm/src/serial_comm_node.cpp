@@ -15,20 +15,21 @@ SerialCommNode::SerialCommNode()
   system_id_ = static_cast<uint8_t>(this->get_parameter("system_id").as_int());
   component_id_ = static_cast<uint8_t>(this->get_parameter("component_id").as_int());
 
-  RCLCPP_INFO(this->get_logger(), "Starting SerialCommNode with port: %s, baud_rate: %d, system_id: %d, component_id: %d",
+  RCLCPP_INFO(this->get_logger(),
+              "Starting SerialCommNode with port: %s, baud_rate: %d, system_id: %d, component_id: %d",
               port_name_.c_str(), baud_rate_, system_id_, component_id_);
 
   // Initialize JFiComm.
   if (!jfi_comm_.init(
         std::bind(&SerialCommNode::handleMessage, this, std::placeholders::_1, std::placeholders::_2),
         port_name_, baud_rate_, system_id_, component_id_)) {
-    RCLCPP_ERROR(this->get_logger(), "Failed to initialize JFiComm on port: %s", port_name_.c_str());
+    RCLCPP_ERROR(this->get_logger(), "[SerialCommNode] Failed to initialize JFiComm on port: %s", port_name_.c_str());
   } else {
     RCLCPP_INFO(this->get_logger(), "JFiComm initialized successfully.");
   }
 
   // Create subscriptions for outgoing messages.
-  sub_to_serial_string = this->create_subscription<std_msgs::msg::String>(
+  sub_to_serial_string_ = this->create_subscription<std_msgs::msg::String>(
     "to_serial_string", 10,
     [this](const std_msgs::msg::String::SharedPtr msg) {
       auto serialized_data = jfi_comm_.serialize_message(msg);
@@ -36,11 +37,11 @@ SerialCommNode::SerialCommNode()
         jfi_comm_.send(TID_STRING, serialized_data);
         RCLCPP_INFO(this->get_logger(), "Sent string message via serial: %s", msg->data.c_str());
       } else {
-        RCLCPP_WARN(this->get_logger(), "Failed to serialize string message for serial transmission.");
+        RCLCPP_WARN(this->get_logger(), "[SerialCommNode] Failed to serialize string message for serial transmission.");
       }
     }
   );
-  sub_to_serial_int = this->create_subscription<std_msgs::msg::Int32>(
+  sub_to_serial_int_ = this->create_subscription<std_msgs::msg::Int32>(
     "to_serial_int", 10,
     [this](const std_msgs::msg::Int32::SharedPtr msg) {
       auto serialized_data = jfi_comm_.serialize_message(msg);
@@ -48,7 +49,7 @@ SerialCommNode::SerialCommNode()
         jfi_comm_.send(TID_INT, serialized_data);
         RCLCPP_INFO(this->get_logger(), "Sent int message via serial: %d", msg->data);
       } else {
-        RCLCPP_WARN(this->get_logger(), "Failed to serialize int message for serial transmission.");
+        RCLCPP_WARN(this->get_logger(), "[SerialCommNode] Failed to serialize int message for serial transmission.");
       }
     }
   );
@@ -74,7 +75,7 @@ void SerialCommNode::handleMessage(const int tid, const std::vector<uint8_t> & d
         pub_from_serial_string_->publish(string_msg);
         RCLCPP_INFO(this->get_logger(), "Received and published TID_STRING message: %s", string_msg.data.c_str());
       } catch (const std::exception & e) {
-        RCLCPP_ERROR(this->get_logger(), "Failed to deserialize TID_STRING message: %s", e.what());
+        RCLCPP_ERROR(this->get_logger(), "[SerialCommNode] Failed to deserialize TID_STRING message: %s", e.what());
       }
     }
     break;
@@ -85,13 +86,13 @@ void SerialCommNode::handleMessage(const int tid, const std::vector<uint8_t> & d
         pub_from_serial_int_->publish(int_msg);
         RCLCPP_INFO(this->get_logger(), "Received and published TID_INT message: %d", int_msg.data);
       } catch (const std::exception & e) {
-        RCLCPP_ERROR(this->get_logger(), "Failed to deserialize TID_INT message: %s", e.what());
+        RCLCPP_ERROR(this->get_logger(), "[SerialCommNode] Failed to deserialize TID_INT message: %s", e.what());
       }
     }
     break;
     default:
     {
-      RCLCPP_WARN(this->get_logger(), "Received unknown message TID: %d", tid);
+      RCLCPP_WARN(this->get_logger(), "[SerialCommNode] Received unknown message TID: %d", tid);
     }
     break;
   }
