@@ -1,6 +1,8 @@
 # J-Fi
 J-Fi is ROS2 Serial Communication Library using MAVLink
 
+![image](https://github.com/user-attachments/assets/089d86cf-dab3-48db-b4c0-dfab6dbb34eb)
+
 
 ## Installation
 
@@ -33,3 +35,8 @@ ros2 launch jfi_comm serial_comm_node.launch.py
 ```
 ros2 launch jfi_comm serial_comm_node.launch.py port_name:=/dev/ttyUSB0 baud_rate:=115200
 ```
+
+## TODO
+- covert to library
+- develop send buffer concept
+- fix the bugs (#1)
