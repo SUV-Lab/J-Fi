@@ -51,20 +51,33 @@ target_include_directories(jfi_comm_lib PUBLIC
   $<INSTALL_INTERFACE:include>
 )
 
+add_library(serial_comm_node_lib
+  src/serial_comm_node.cpp
+)
+ament_target_dependencies(serial_comm_node_lib
+  rclcpp
+  std_msgs
+)
+target_link_libraries(serial_comm_node_lib
+  jfi_comm_lib
+)
+
 # Build executable
 add_executable(serial_comm_node
-  src/serial_comm_node.cpp
+  src/main.cpp
 )
 ament_target_dependencies(serial_comm_node
   rclcpp
   std_msgs
 )
 target_link_libraries(serial_comm_node
-  jfi_comm_lib
+  serial_comm_node_lib
 )
+
 
 install(TARGETS
   jfi_comm_lib
+  serial_comm_node_lib
   serial_comm_node
   DESTINATION lib/${PROJECT_NAME}
 )

@@ -5,27 +5,32 @@
 #include <vector>
 #include <mutex>
 #include <functional>
+#include <thread>
+#include <memory>
+#include <cstring>
+#include <atomic>
+#include <array>
+
 #include <termios.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
-#include <thread>
-#include <memory>
-#include <cstring>
+
+#include <rclcpp/rclcpp.hpp>
 #include <rclcpp/serialized_message.hpp>
 #include <rclcpp/serialization.hpp>
+
 #include "mavlink/jfi/mavlink.h"
 
 /**
  * @class JFiComm
- * @brief A library that implements serial communication with MAVLink
+ * @brief A library that implements serial communication using MAVLink.
  *
- * - openPort/closePort: Open and close the serial port
- * - send: Convert topic data into a MAVLink message, then store in the send buffer
- * - checkSendBuffer: Send data from the buffer to the serial port one by one
- * - recvMavLoop: Read bytes from the serial port and parse them as MAVLink
- * - When a message is fully parsed, call the callback function (set via setReceiveCallback)
+ * - openPort/closePort: Open and close the serial port.
+ * - send: Encode topic data into a MAVLink message and send it.
+ * - recvMavLoop: Read bytes from the serial port and parse them as MAVLink.
+ * - serialize_message / deserialize_message: Convert ROS2 messages to/from byte arrays.
  */
 class JFiComm
 {
@@ -33,32 +38,52 @@ public:
   JFiComm();
   ~JFiComm();
 
-  /**
-   * @brief init JFi Communication
-   */
-  bool init(std::function<void(const int tid, const std::vector<uint8_t> &)> recv_cb, const std::string & port_name, int baud_rate);
+  // Delete copy and move operations to avoid resource duplication.
+  JFiComm(const JFiComm&) = delete;
+  JFiComm& operator=(const JFiComm&) = delete;
+  JFiComm(JFiComm&&) = delete;
+  JFiComm& operator=(JFiComm&&) = delete;
 
   /**
-   * @brief Close the serial port
+   * @brief Initialize serial communication.
+   *
+   * @param recv_cb Callback function to handle received messages.
+   * @param port_name Serial port name (e.g., "/dev/ttyUSB0").
+   * @param baud_rate Baud rate (e.g., 115200).
+   * @param system_id MAVLink system ID.
+   * @param component_id MAVLink component ID.
+   * @return true if initialization is successful.
+   */
+  bool init(std::function<void(const int tid, const std::vector<uint8_t> &)> recv_cb,
+            const std::string & port_name, int baud_rate,
+            uint8_t system_id = 1, uint8_t component_id = 1);
+
+  /**
+   * @brief Close the serial port.
    */
   void closePort();
 
   /**
-   * @brief Convert topic data to a MAVLink message and store it in the send buffer
-   * @param topic_data For example, a string from a ROS topic
+   * @brief Encode and send a MAVLink message.
+   *
+   * @param tid Message type identifier.
+   * @param data Data to be sent.
    */
-  void send(const uint8_t tid, const std::vector<uint8_t> & data);
+  void send(const uint8_t tid, const std::vector<uint8_t>& data);
 
   /**
-   * @brief Read bytes from the serial port, parse them as MAVLink
-   *        Should be called periodically or by an event
+   * @brief Continuously read from the serial port and parse MAVLink messages.
+   *        This function is designed to run in a separate thread.
    */
   void recvMavLoop();
 
   /**
-   * @brief serialize topic message
-   *        ex) auto serialized_data = serialize_message(image_msg);
-   * @param topic message
+   * @brief Serialize a ROS2 topic message.
+   * Example: auto serialized_data = serialize_message(image_msg);
+   *
+   * @tparam T Message type.
+   * @param msg Shared pointer to the ROS2 message.
+   * @return Serialized message.
    */
   template <typename T>
   std::vector<uint8_t> serialize_message(const std::shared_ptr<T>& msg)
@@ -67,19 +92,22 @@ public:
     rclcpp::SerializedMessage serialized_msg;
     serializer.serialize_message(msg.get(), &serialized_msg);
 
-    // convert topic to byte array
+    // Convert the serialized message to a byte array.
     std::vector<uint8_t> data(
         serialized_msg.get_rcl_serialized_message().buffer,
-        serialized_msg.get_rcl_serialized_message().buffer + serialized_msg.get_rcl_serialized_message().buffer_length
+        serialized_msg.get_rcl_serialized_message().buffer +
+          serialized_msg.get_rcl_serialized_message().buffer_length
     );
-
     return data;
   }
 
   /**
-   * @brief deserialize data
-   *        ex) auto deserialized_msg = deserialize_message<geometry_msgs::msg::Twist>(serialized_data);
-   * @param serialized data
+   * @brief Deserialize a byte array into a ROS2 message.
+   * Example: auto deserialized_msg = deserialize_message<geometry_msgs::msg::Twist>(serialized_data);
+   *
+   * @tparam T Message type.
+   * @param data Serialized data.
+   * @return Deserialized message.
    */
   template <typename T>
   T deserialize_message(const std::vector<uint8_t>& data)
@@ -88,11 +116,9 @@ public:
     rclcpp::Serialization<T> serializer;
     rclcpp::SerializedMessage serialized_msg;
 
-    // Allocate memory for the serialized message
     serialized_msg.reserve(data.size());
     serialized_msg.get_rcl_serialized_message().buffer_length = data.size();
 
-    // Copy the data into the serialized message buffer
     std::memcpy(
         serialized_msg.get_rcl_serialized_message().buffer,
         data.data(),
@@ -105,33 +131,34 @@ public:
 
 private:
   /**
-   * @brief Open the serial port
-   * @param port_name e.g. "/dev/ttyUSB0"
-   * @param baud_rate e.g. 115200
-   * @return true if successfully opened, false otherwise
+   * @brief Open the serial port.
+   *
+   * @param port_name Serial port name.
+   * @param baud_rate Baud rate.
+   * @return true if the port is successfully opened.
    */
   bool openPort(const std::string & port_name, int baud_rate);
 
   /**
-   * @brief Helper function to write raw data to the serial port
-   * @param data Binary data
+   * @brief Write data to the serial port.
+   *
+   * @param data Data to send.
    */
   void writeData(const std::vector<uint8_t> & data);
 
 private:
   int fd_;
-
   std::thread mav_recv_thread_;
-
   std::mutex fd_mutex_;
-
-  mavlink_message_t mav_msg_;
-  mavlink_status_t status_;
-
-  std::vector<std::vector<uint8_t>> send_buffer_;
-  std::mutex send_buffer_mutex_;
-
   std::function<void(const int tid, const std::vector<uint8_t> &)> receive_callback_;
+  std::atomic<bool> running_;
+
+  // Parameterized MAVLink system and component IDs.
+  uint8_t system_id_;
+  uint8_t component_id_;
+
+  // Fixed buffer for receiving data to minimize dynamic allocations.
+  std::array<uint8_t, 256> rx_buffer_;
 };
 
 #endif  // JFI_COMM_HPP
