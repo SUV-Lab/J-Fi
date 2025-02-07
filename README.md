@@ -21,7 +21,7 @@ J-Fi/
 ├── mavlink/
 └── src/
   ├── jfi_comm.cpp                # Implementation of the JFi Library.
-  └── serial_comm_node.cpp        # Implementation of the Example ROS2 node using Library
+  ├── serial_comm_node.cpp        # Implementation of the Example ROS2 node using Library
   └── main.cpp
 ```
 
