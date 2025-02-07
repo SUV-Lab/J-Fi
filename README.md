@@ -4,8 +4,25 @@ J-Fi is a ROS2 Serial Communication Library using MAVLink
 
 ![image](https://github.com/user-attachments/assets/089d86cf-dab3-48db-b4c0-dfab6dbb34eb)
 
+## Structure
+
 - jfi_comm : ROS2 Serial Communication Library
-- serial_comm_node : Example Node of using a J-Fi library
+- serial_comm_node : Example ROS2 Node of using a J-Fi library
+```
+J-Fi/
+├── config/                       # Mavlink message definition.
+├── include/
+│ ├── jfi_comm.hpp                # Header file for the JFi Library.
+│ └── serial_comm_node.hpp        # Header file for the Example ROS2 node using Library
+├── launch/
+│ ├── test_simulation.launch.py   # Example Launch file for simulation tests using virtual serial ports.
+│ └── serial_comm_node.launch.py  # Example Launch file for running the node in a real environment.
+├── mavlink/
+└── src/
+  ├── jfi_comm.cpp                # Implementation of the JFi Library.
+  └── serial_comm_node.cpp        # Implementation of the Example ROS2 node using Library
+  └── main.cpp                    ```
+```
 
 ## Features
 
