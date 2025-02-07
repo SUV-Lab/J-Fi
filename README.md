@@ -39,4 +39,4 @@ ros2 launch jfi_comm serial_comm_node.launch.py port_name:=/dev/ttyUSB0 baud_rat
 ## TODO
 - covert to library
 - develop send buffer concept
-- fix the bugs (#1)
+- fix the bugs (#2)
