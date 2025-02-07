@@ -1,13 +1,13 @@
 # J-Fi
 
-J-Fi is a ROS2 Serial Communication Library using MAVLink
+J-Fi is a ROS2 Serial Communication Library
 
 ![image](https://github.com/user-attachments/assets/089d86cf-dab3-48db-b4c0-dfab6dbb34eb)
 
 ## Structure
 
 - **jfi_comm** : ROS2 Serial Communication Library
-- serial_comm_node : Example ROS2 Node of using a J-Fi library
+- serial_comm_node : **Example** ROS2 Node of using a J-Fi library
 ```
 J-Fi/
 ├── config/
@@ -27,7 +27,6 @@ J-Fi/
 
 ## Features
 
-- **Serial Port Management**: Opens and closes the serial port with configurable parameters.
 - **MAVLink Message Handling**: Encodes ROS2 messages into MAVLink messages and decodes received MAVLink messages back into ROS2 messages.
 
 ## Prerequisites
