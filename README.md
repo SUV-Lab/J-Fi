@@ -1,4 +1,4 @@
-# J-Fi
+# J-Fi ROS2 Bridge
 
 J-Fi is a ROS2 Serial Communication Library
 
