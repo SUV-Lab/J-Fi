@@ -28,9 +28,12 @@ SerialCommNode::SerialCommNode()
     RCLCPP_INFO(this->get_logger(), "JFiComm initialized successfully.");
   }
 
+  rmw_qos_profile_t qos_profile = rmw_qos_profile_sensor_data;
+  auto qos = rclcpp::QoS(rclcpp::QoSInitialization(qos_profile.history, 5), qos_profile);
+
   // Create subscriptions for outgoing messages.
   sub_to_serial_string_ = this->create_subscription<std_msgs::msg::String>(
-    "to_serial_string", 10,
+    "to_serial_string", qos,
     [this](const std_msgs::msg::String::SharedPtr msg) {
       auto serialized_data = jfi_comm_.serialize_message(msg);
       if (!serialized_data.empty()) {
@@ -42,7 +45,7 @@ SerialCommNode::SerialCommNode()
     }
   );
   sub_to_serial_int_ = this->create_subscription<std_msgs::msg::Int32>(
-    "to_serial_int", 10,
+    "to_serial_int", qos,
     [this](const std_msgs::msg::Int32::SharedPtr msg) {
       auto serialized_data = jfi_comm_.serialize_message(msg);
       if (!serialized_data.empty()) {
@@ -55,8 +58,8 @@ SerialCommNode::SerialCommNode()
   );
 
   // Create publishers for incoming messages.
-  pub_from_serial_string_ = this->create_publisher<std_msgs::msg::String>("from_serial_string", 10);
-  pub_from_serial_int_ = this->create_publisher<std_msgs::msg::Int32>("from_serial_int", 10);
+  pub_from_serial_string_ = this->create_publisher<std_msgs::msg::String>("from_serial_string", qos);
+  pub_from_serial_int_ = this->create_publisher<std_msgs::msg::Int32>("from_serial_int", qos);
 }
 
 SerialCommNode::~SerialCommNode()
