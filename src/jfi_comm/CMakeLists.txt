@@ -28,6 +28,7 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
+find_package(px4_msgs REQUIRED)
 
 # Include headers
 include_directories(include)
@@ -45,6 +46,7 @@ add_dependencies(jfi_comm_lib
 ament_target_dependencies(jfi_comm_lib
   rclcpp
   std_msgs
+  px4_msgs
 )
 target_include_directories(jfi_comm_lib PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -57,6 +59,7 @@ add_library(serial_comm_node_lib
 ament_target_dependencies(serial_comm_node_lib
   rclcpp
   std_msgs
+  px4_msgs
 )
 target_link_libraries(serial_comm_node_lib
   jfi_comm_lib
@@ -69,6 +72,7 @@ add_executable(serial_comm_node
 ament_target_dependencies(serial_comm_node
   rclcpp
   std_msgs
+  px4_msgs
 )
 target_link_libraries(serial_comm_node
   serial_comm_node_lib

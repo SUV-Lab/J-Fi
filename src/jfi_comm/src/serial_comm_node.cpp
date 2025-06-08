@@ -32,34 +32,21 @@ SerialCommNode::SerialCommNode()
   auto qos = rclcpp::QoS(rclcpp::QoSInitialization(qos_profile.history, 5), qos_profile);
 
   // Create subscriptions for outgoing messages.
-  sub_to_serial_string_ = this->create_subscription<std_msgs::msg::String>(
-    "to_serial_string", qos,
-    [this](const std_msgs::msg::String::SharedPtr msg) {
+  sub_to_serial_trajectory_setpoint_ = this->create_subscription<px4_msgs::msg::TrajectorySetpoint>(
+    "to_serial_trajectory_setpoint", qos,
+    [this](const px4_msgs::msg::TrajectorySetpoint::SharedPtr msg) {
       auto serialized_data = jfi_comm_.serialize_message(msg);
       if (!serialized_data.empty()) {
-        jfi_comm_.send(TID_STRING, serialized_data);
-        RCLCPP_INFO(this->get_logger(), "Sent string message via serial: %s", msg->data.c_str());
+        jfi_comm_.send(TID_TRAJECTORY_SETPOINT, serialized_data);
+        RCLCPP_INFO(this->get_logger(), "Sent trajectory setpoint message via serial.");
       } else {
-        RCLCPP_WARN(this->get_logger(), "[SerialCommNode] Failed to serialize string message for serial transmission.");
-      }
-    }
-  );
-  sub_to_serial_int_ = this->create_subscription<std_msgs::msg::Int32>(
-    "to_serial_int", qos,
-    [this](const std_msgs::msg::Int32::SharedPtr msg) {
-      auto serialized_data = jfi_comm_.serialize_message(msg);
-      if (!serialized_data.empty()) {
-        jfi_comm_.send(TID_INT, serialized_data);
-        RCLCPP_INFO(this->get_logger(), "Sent int message via serial: %d", msg->data);
-      } else {
-        RCLCPP_WARN(this->get_logger(), "[SerialCommNode] Failed to serialize int message for serial transmission.");
+        RCLCPP_WARN(this->get_logger(), "[SerialCommNode] Failed to serialize trajectory setpoint message for serial transmission.");
       }
     }
   );
 
   // Create publishers for incoming messages.
-  pub_from_serial_string_ = this->create_publisher<std_msgs::msg::String>("from_serial_string", qos);
-  pub_from_serial_int_ = this->create_publisher<std_msgs::msg::Int32>("from_serial_int", qos);
+  pub_from_serial_trajectory_setpoint_ = this->create_publisher<px4_msgs::msg::TrajectorySetpoint>("from_serial_trajectory_setpoint", qos);
 }
 
 SerialCommNode::~SerialCommNode()
@@ -71,28 +58,18 @@ SerialCommNode::~SerialCommNode()
 void SerialCommNode::handleMessage(const int tid, const std::vector<uint8_t> & data)
 {
   switch (tid) {
-    case TID_STRING:
+    case TID_TRAJECTORY_SETPOINT:
     {
       try {
-        std_msgs::msg::String string_msg = jfi_comm_.deserialize_message<std_msgs::msg::String>(data);
-        pub_from_serial_string_->publish(string_msg);
-        RCLCPP_INFO(this->get_logger(), "Received and published TID_STRING message: %s", string_msg.data.c_str());
+        px4_msgs::msg::TrajectorySetpoint trajectory_msg = jfi_comm_.deserialize_message<px4_msgs::msg::TrajectorySetpoint>(data);
+        pub_from_serial_trajectory_setpoint_->publish(trajectory_msg);
+        RCLCPP_INFO(this->get_logger(), "Received and published TID_TRAJECTORY_SETPOINT message.");
       } catch (const std::exception & e) {
-        RCLCPP_ERROR(this->get_logger(), "[SerialCommNode] Failed to deserialize TID_STRING message: %s", e.what());
+        RCLCPP_ERROR(this->get_logger(), "[SerialCommNode] Failed to deserialize TID_TRAJECTORY_SETPOINT message: %s", e.what());
       }
     }
     break;
-    case TID_INT:
-    {
-      try {
-        std_msgs::msg::Int32 int_msg = jfi_comm_.deserialize_message<std_msgs::msg::Int32>(data);
-        pub_from_serial_int_->publish(int_msg);
-        RCLCPP_INFO(this->get_logger(), "Received and published TID_INT message: %d", int_msg.data);
-      } catch (const std::exception & e) {
-        RCLCPP_ERROR(this->get_logger(), "[SerialCommNode] Failed to deserialize TID_INT message: %s", e.what());
-      }
-    }
-    break;
+    // Add more cases for other TIDs as needed.
     default:
     {
       RCLCPP_WARN(this->get_logger(), "[SerialCommNode] Received unknown message TID: %d", tid);

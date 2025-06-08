@@ -4,8 +4,8 @@
 #include <chrono>
 #include <rclcpp/rclcpp.hpp>
 
-#include <std_msgs/msg/string.hpp>
-#include <std_msgs/msg/int32.hpp>
+#include <px4_msgs/msg/trajectory_setpoint.hpp>
+// #include <px4_msgs/msg/vehicle_status.hpp>
 
 #include "jfi_comm.hpp"
 
@@ -22,8 +22,8 @@ class SerialCommNode : public rclcpp::Node
 {
 public:
   enum TID{
-    TID_STRING = 1,
-    TID_INT = 2,
+    TID_TRAJECTORY_SETPOINT = 1,
+    // TID_VEHICLE_STATUS = 2
   };
 
 public:
@@ -49,11 +49,9 @@ private:
   uint8_t       component_id_;
 
   // ROS subscriptions and publishers
-  rclcpp::Subscription<std_msgs::msg::String>::SharedPtr sub_to_serial_string_;
-  rclcpp::Subscription<std_msgs::msg::Int32>::SharedPtr sub_to_serial_int_;
+  rclcpp::Subscription<px4_msgs::msg::TrajectorySetpoint>::SharedPtr sub_to_serial_trajectory_setpoint_;
   
-  rclcpp::Publisher<std_msgs::msg::String>::SharedPtr pub_from_serial_string_;
-  rclcpp::Publisher<std_msgs::msg::Int32>::SharedPtr pub_from_serial_int_;
+  rclcpp::Publisher<px4_msgs::msg::TrajectorySetpoint>::SharedPtr pub_from_serial_trajectory_setpoint_;
 };
 
 #endif  // SERIAL_COMM_NODE_HPP
