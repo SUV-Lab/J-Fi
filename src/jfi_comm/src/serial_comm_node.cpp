@@ -9,91 +9,104 @@ SerialCommNode::SerialCommNode()
   this->declare_parameter<int>("baud_rate", 115200);
   this->declare_parameter<int>("system_id", 1);
   this->declare_parameter<int>("component_id", 1);
+  this->declare_parameter<std::vector<int>>("system_id_list", {1,2,3,4});
   
-  port_name_ = this->get_parameter("port_name").as_string();
-  baud_rate_ = this->get_parameter("baud_rate").as_int();
-  system_id_ = static_cast<uint8_t>(this->get_parameter("system_id").as_int());
-  component_id_ = static_cast<uint8_t>(this->get_parameter("component_id").as_int());
+  port_name_       = this->get_parameter("port_name").as_string();
+  baud_rate_       = this->get_parameter("baud_rate").as_int();
+  system_id_       = static_cast<uint8_t>(this->get_parameter("system_id").as_int());
+  component_id_    = static_cast<uint8_t>(this->get_parameter("component_id").as_int());
+  system_id_list_  = this->get_parameter("system_id_list").as_integer_array();
 
-  RCLCPP_INFO(this->get_logger(),
-              "Starting SerialCommNode with port: %s, baud_rate: %d, system_id: %d, component_id: %d",
-              port_name_.c_str(), baud_rate_, system_id_, component_id_);
+  // JFI topic prefix
+  topic_prefix_jfi_ = "drone" + std::to_string(system_id_) + "/jfi/";
+
+  RCLCPP_INFO(get_logger(),
+    "SerialCommNode[%u] on %s @ %dbps",
+    system_id_, port_name_.c_str(), baud_rate_);
 
   // Initialize JFiComm.
   if (!jfi_comm_.init(
-        std::bind(&SerialCommNode::handleMessage, this, std::placeholders::_1, std::placeholders::_2),
-        port_name_, baud_rate_, system_id_, component_id_)) {
-    RCLCPP_ERROR(this->get_logger(), "[SerialCommNode] Failed to initialize JFiComm on port: %s", port_name_.c_str());
-  } else {
-    RCLCPP_INFO(this->get_logger(), "JFiComm initialized successfully.");
+        std::bind(&SerialCommNode::handleMessage, this,
+                  std::placeholders::_1,
+                  std::placeholders::_2,
+                  std::placeholders::_3),
+        port_name_, baud_rate_, system_id_, component_id_))
+  {
+    RCLCPP_ERROR(get_logger(), "Failed to init JFiComm");
   }
 
   // Create subscriptions for outgoing messages.
-  sub_to_serial_string_ = this->create_subscription<std_msgs::msg::String>(
-    "to_serial_string", 10,
-    [this](const std_msgs::msg::String::SharedPtr msg) {
-      auto serialized_data = jfi_comm_.serialize_message(msg);
-      if (!serialized_data.empty()) {
-        jfi_comm_.send(TID_STRING, serialized_data);
-        RCLCPP_INFO(this->get_logger(), "Sent string message via serial: %s", msg->data.c_str());
-      } else {
-        RCLCPP_WARN(this->get_logger(), "[SerialCommNode] Failed to serialize string message for serial transmission.");
+  sub_to_serial_ranging_ = create_subscription<uwb_msgs::msg::Ranging>(
+    topic_prefix_jfi_ + "in/ranging",  10,
+    [this](uwb_msgs::msg::Ranging::SharedPtr msg) {
+      auto data = jfi_comm_.serialize_message(msg);
+      if (!data.empty()) {
+        jfi_comm_.send(TID_RANGING, data);
       }
-    }
-  );
-  sub_to_serial_int_ = this->create_subscription<std_msgs::msg::Int32>(
-    "to_serial_int", 10,
-    [this](const std_msgs::msg::Int32::SharedPtr msg) {
-      auto serialized_data = jfi_comm_.serialize_message(msg);
-      if (!serialized_data.empty()) {
-        jfi_comm_.send(TID_INT, serialized_data);
-        RCLCPP_INFO(this->get_logger(), "Sent int message via serial: %d", msg->data);
-      } else {
-        RCLCPP_WARN(this->get_logger(), "[SerialCommNode] Failed to serialize int message for serial transmission.");
+    });
+
+  sub_to_serial_trajectory_ = create_subscription<px4_msgs::msg::TrajectorySetpoint>(
+    topic_prefix_jfi_ + "in/target", 10,
+    [this](px4_msgs::msg::TrajectorySetpoint::SharedPtr msg) {
+      auto data = jfi_comm_.serialize_message(msg);
+      if (!data.empty()) {
+        jfi_comm_.send(TID_TRAJECTORY, data);
       }
-    }
-  );
+    });
 
   // Create publishers for incoming messages.
-  pub_from_serial_string_ = this->create_publisher<std_msgs::msg::String>("from_serial_string", 10);
-  pub_from_serial_int_ = this->create_publisher<std_msgs::msg::Int32>("from_serial_int", 10);
+  for (int id : system_id_list_) {
+    if (id == system_id_) continue;
+    // Ranging
+    auto r_pub = create_publisher<uwb_msgs::msg::Ranging>(
+      topic_prefix_jfi_ + "out/drone" + std::to_string(id) + "/ranging", 10);
+    pub_ranging_map_[id] = r_pub;
+
+    // TrajectorySetpoint
+    auto t_pub = create_publisher<px4_msgs::msg::TrajectorySetpoint>(
+      topic_prefix_jfi_ + "out/drone" + std::to_string(id) + "/target", 10);
+    pub_trajectory_map_[id] = t_pub;
+  }
 }
 
 SerialCommNode::~SerialCommNode()
 {
-  RCLCPP_INFO(this->get_logger(), "Shutting down SerialCommNode, closing serial port.");
+  RCLCPP_INFO(get_logger(), "Shutting down SerialCommNode");
   jfi_comm_.closePort();
 }
 
-void SerialCommNode::handleMessage(const int tid, const std::vector<uint8_t> & data)
+void SerialCommNode::handleMessage(int tid, uint8_t src_sysid, const std::vector<uint8_t>& data)
 {
   switch (tid) {
-    case TID_STRING:
-    {
+    case TID_RANGING: {
       try {
-        std_msgs::msg::String string_msg = jfi_comm_.deserialize_message<std_msgs::msg::String>(data);
-        pub_from_serial_string_->publish(string_msg);
-        RCLCPP_INFO(this->get_logger(), "Received and published TID_STRING message: %s", string_msg.data.c_str());
-      } catch (const std::exception & e) {
-        RCLCPP_ERROR(this->get_logger(), "[SerialCommNode] Failed to deserialize TID_STRING message: %s", e.what());
+        auto msg = jfi_comm_.deserialize_message<uwb_msgs::msg::Ranging>(data);
+        auto it  = pub_ranging_map_.find(src_sysid);
+        if (it != pub_ranging_map_.end()) {
+          it->second->publish(msg);
+        } else {
+          RCLCPP_WARN(get_logger(), "No publisher for Ranging from drone%u", src_sysid);
+        }
+      } catch (const std::exception& e) {
+        RCLCPP_ERROR(get_logger(), "Ranging deserialize failed: %s", e.what());
       }
+      break;
     }
-    break;
-    case TID_INT:
-    {
+    case TID_TRAJECTORY: {
       try {
-        std_msgs::msg::Int32 int_msg = jfi_comm_.deserialize_message<std_msgs::msg::Int32>(data);
-        pub_from_serial_int_->publish(int_msg);
-        RCLCPP_INFO(this->get_logger(), "Received and published TID_INT message: %d", int_msg.data);
-      } catch (const std::exception & e) {
-        RCLCPP_ERROR(this->get_logger(), "[SerialCommNode] Failed to deserialize TID_INT message: %s", e.what());
+        auto msg = jfi_comm_.deserialize_message<px4_msgs::msg::TrajectorySetpoint>(data);
+        auto it  = pub_trajectory_map_.find(src_sysid);
+        if (it != pub_trajectory_map_.end()) {
+          it->second->publish(msg);
+        } else {
+          RCLCPP_WARN(get_logger(), "No publisher for Target from drone%u", src_sysid);
+        }
+      } catch (const std::exception& e) {
+        RCLCPP_ERROR(get_logger(), "Target deserialize failed: %s", e.what());
       }
+      break;
     }
-    break;
     default:
-    {
-      RCLCPP_WARN(this->get_logger(), "[SerialCommNode] Received unknown message TID: %d", tid);
-    }
-    break;
+      RCLCPP_WARN(get_logger(), "Unknown TID: %d from %u", tid, src_sysid);
   }
 }
