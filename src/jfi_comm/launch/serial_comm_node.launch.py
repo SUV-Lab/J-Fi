@@ -19,31 +19,38 @@ def generate_launch_description():
     system_id_arg = DeclareLaunchArgument(
         'system_id',
         default_value='1',
-        description='MAVLink system ID'
+        description='MAVLink system ID of this node'
     )
     component_id_arg = DeclareLaunchArgument(
         'component_id',
         default_value='1',
-        description='MAVLink component ID'
+        description='MAVLink component ID of this node'
+    )
+    system_list_arg = DeclareLaunchArgument(
+        'system_id_list',
+        default_value='[1,2,3,4]',
+        description='List of all MAVLink system IDs in the network'
     )
 
-    # Get launch configurations.
-    port_name = LaunchConfiguration('port_name')
-    baud_rate = LaunchConfiguration('baud_rate')
-    system_id = LaunchConfiguration('system_id')
-    component_id = LaunchConfiguration('component_id')
+    # Get launch configurations
+    port_name       = LaunchConfiguration('port_name')
+    baud_rate       = LaunchConfiguration('baud_rate')
+    system_id       = LaunchConfiguration('system_id')
+    component_id    = LaunchConfiguration('component_id')
+    system_id_list  = LaunchConfiguration('system_id_list')
 
     # Define the Node
     comm_node = Node(
         package='jfi_comm',
         executable='serial_comm_node',
-        name='comm_node',
+        name='serial_comm_node',
         output='screen',
         parameters=[
-            {'port_name': port_name},
-            {'baud_rate': baud_rate},
-            {'system_id': system_id},
-            {'component_id': component_id}
+            {'port_name':        port_name},
+            {'baud_rate':        baud_rate},
+            {'system_id':        system_id},
+            {'component_id':     component_id},
+            {'system_id_list':   system_id_list},
         ]
     )
 
@@ -52,5 +59,6 @@ def generate_launch_description():
         baud_arg,
         system_id_arg,
         component_id_arg,
-        comm_node
+        system_list_arg,
+        comm_node,
     ])
