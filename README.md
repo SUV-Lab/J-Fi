@@ -74,6 +74,16 @@ ros2 launch jfi_comm serial_comm_node.launch.py
 ros2 launch jfi_comm serial_comm_node.launch.py port_name:=/dev/ttyUSB1 baud_rate:=115200 system_id:=2 component_id:=2
 ```
 
+### For real enviroment (Rover)
+Use real serial ports (default:sender):
+```
+ros2 launch jfi_comm serial_comm_node.launch.py
+```
+(Optional) Example with custom configuration:
+```
+ros2 launch jfi_comm serial_comm_node.launch.py mode:=receiver system_id:=2
+```
+
 ## TODO
 
 - develop send buffer concept
