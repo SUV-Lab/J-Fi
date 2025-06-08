@@ -44,7 +44,7 @@ SerialCommNode::SerialCommNode()
         auto serialized_data = jfi_comm_.serialize_message(msg);
         if (!serialized_data.empty()) {
           jfi_comm_.send(TID_TRAJECTORY_SETPOINT, serialized_data);
-          RCLCPP_INFO(this->get_logger(), "Sent trajectory setpoint message via serial.");
+          // RCLCPP_INFO(this->get_logger(), "Sent trajectory setpoint message via serial.");
         } else {
           RCLCPP_WARN(this->get_logger(), "[SerialCommNode] Failed to serialize trajectory setpoint message for serial transmission.");
         }
@@ -77,7 +77,7 @@ void SerialCommNode::handleMessage(const int tid, const std::vector<uint8_t> & d
         pub_from_serial_trajectory_setpoint_->publish(trajectory_msg);
         RCLCPP_INFO(this->get_logger(), "Received and published TID_TRAJECTORY_SETPOINT message.");
       } catch (const std::exception & e) {
-        RCLCPP_ERROR(this->get_logger(), "[SerialCommNode] Failed to deserialize TID_TRAJECTORY_SETPOINT message: %s", e.what());
+        // RCLCPP_ERROR(this->get_logger(), "[SerialCommNode] Failed to deserialize TID_TRAJECTORY_SETPOINT message: %s", e.what());
       }
     }
     break;

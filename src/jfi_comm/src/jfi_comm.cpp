@@ -79,7 +79,7 @@ void JFiComm::recvMavLoop()
     for (ssize_t i = 0; i < n; ++i) {
       if (mavlink_parse_char(MAVLINK_COMM_0, rx_buffer_[i], &message, &status) == 1) {
         if (message.msgid == MAVLINK_MSG_ID_JFI) {
-          RCLCPP_INFO(rclcpp::get_logger("JFiComm"), "RECV");
+          // RCLCPP_INFO(rclcpp::get_logger("JFiComm"), "RECV");
           mavlink_jfi_t jfi_msg_;
           mavlink_msg_jfi_decode(&message, &jfi_msg_);
           std::vector<uint8_t> data(jfi_msg_.data, jfi_msg_.data + jfi_msg_.len);
@@ -194,7 +194,7 @@ void JFiComm::send(const uint8_t tid, const std::vector<uint8_t> & data)
   // Send (future improvements may add rate control via a send buffer).
   writeData(std::vector<uint8_t>(buffer, buffer + len));
   
-  RCLCPP_INFO(rclcpp::get_logger("JFiComm"), "PUSH");
+  // RCLCPP_INFO(rclcpp::get_logger("JFiComm"), "PUSH");
 }
 
 void JFiComm::writeData(const std::vector<uint8_t> & data)
