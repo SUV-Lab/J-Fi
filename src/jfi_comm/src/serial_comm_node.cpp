@@ -33,6 +33,8 @@ SerialCommNode::SerialCommNode()
   rmw_qos_profile_t qos_profile = rmw_qos_profile_sensor_data;
   auto qos = rclcpp::QoS(rclcpp::QoSInitialization(qos_profile.history, 5), qos_profile);
 
+  const std::string topic_prefix = "vehicle" + std::to_string(system_id_);
+
   // Conditional pub/sub based on mode_
   if (mode_ == "sender") {
     // Create subscription for outgoing messages.
@@ -51,7 +53,7 @@ SerialCommNode::SerialCommNode()
   } else {
     // Create publisher for incoming messages.
     pub_from_serial_trajectory_setpoint_ = this->create_publisher<px4_msgs::msg::TrajectorySetpoint>(
-      "from_serial_trajectory_setpoint", qos);
+      topic_prefix + "/from_serial_trajectory_setpoint", qos);
   }
 }
 
