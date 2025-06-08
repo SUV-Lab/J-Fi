@@ -47,6 +47,7 @@ private:
   int           baud_rate_;
   uint8_t       system_id_;
   uint8_t       component_id_;
+  std::string   mode_;  // "sender" or "receiver"
 
   // ROS subscriptions and publishers
   rclcpp::Subscription<px4_msgs::msg::TrajectorySetpoint>::SharedPtr sub_to_serial_trajectory_setpoint_;

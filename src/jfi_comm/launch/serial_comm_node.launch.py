@@ -26,12 +26,18 @@ def generate_launch_description():
         default_value='1',
         description='MAVLink component ID'
     )
+    mode_arg = DeclareLaunchArgument(
+        'mode',
+        default_value='sender',
+        description='Node mode: "sender" or "receiver"'
+    )
 
-    # Get launch configurations.
+    # Get launch configurations
     port_name = LaunchConfiguration('port_name')
     baud_rate = LaunchConfiguration('baud_rate')
     system_id = LaunchConfiguration('system_id')
     component_id = LaunchConfiguration('component_id')
+    mode = LaunchConfiguration('mode')
 
     # Define the Node
     comm_node = Node(
@@ -43,7 +49,8 @@ def generate_launch_description():
             {'port_name': port_name},
             {'baud_rate': baud_rate},
             {'system_id': system_id},
-            {'component_id': component_id}
+            {'component_id': component_id},
+            {'mode': mode}
         ]
     )
 
@@ -52,5 +59,6 @@ def generate_launch_description():
         baud_arg,
         system_id_arg,
         component_id_arg,
+        mode_arg,
         comm_node
     ])
