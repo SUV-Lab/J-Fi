@@ -75,7 +75,7 @@ void SerialCommNode::handleMessage(const int tid, const std::vector<uint8_t> & d
       try {
         px4_msgs::msg::TrajectorySetpoint trajectory_msg = jfi_comm_.deserialize_message<px4_msgs::msg::TrajectorySetpoint>(data);
         pub_from_serial_trajectory_setpoint_->publish(trajectory_msg);
-        RCLCPP_INFO(this->get_logger(), "Received and published TID_TRAJECTORY_SETPOINT message.");
+        // RCLCPP_INFO(this->get_logger(), "Received and published TID_TRAJECTORY_SETPOINT message.");
       } catch (const std::exception & e) {
         // RCLCPP_ERROR(this->get_logger(), "[SerialCommNode] Failed to deserialize TID_TRAJECTORY_SETPOINT message: %s", e.what());
       }
