@@ -28,9 +28,10 @@ JFiComm::~JFiComm()
   closePort();
 }
 
-bool JFiComm::init(std::function<void(const int tid, const std::vector<uint8_t> &)> recv_cb,
-                   const std::string & port_name, int baud_rate,
-                   uint8_t system_id, uint8_t component_id)
+bool JFiComm::init(
+  std::function<void(uint8_t, uint8_t, const std::vector<uint8_t>&)> recv_cb,
+  const std::string & port_name, int baud_rate,uint8_t system_id, uint8_t component_id
+)
 {
   receive_callback_ = recv_cb;
   system_id_ = system_id;
@@ -83,8 +84,8 @@ void JFiComm::recvMavLoop()
           mavlink_msg_jfi_decode(&message, &jfi_msg);
 
           std::vector<uint8_t> data(
-            jfi_msg_.data,
-            jfi_msg_.data + jfi_msg_.len
+            jfi_msg.data,
+            jfi_msg.data + jfi_msg.len
           );
 
           uint8_t src_sysid = message.sysid;
@@ -92,7 +93,7 @@ void JFiComm::recvMavLoop()
           // RCLCPP_INFO(rclcpp::get_logger("JFiComm"), "RECV");
 
           if (receive_callback_) {
-            receive_callback_(jfi_msg_.tid, src_sysid, data);
+            receive_callback_(jfi_msg.tid, src_sysid, data);
           }
         } else {
           RCLCPP_WARN(rclcpp::get_logger("JFiComm"), "[recvMavLoop] Unknown message ID: %d", message.msgid);

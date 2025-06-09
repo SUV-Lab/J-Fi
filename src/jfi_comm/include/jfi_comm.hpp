@@ -54,9 +54,10 @@ public:
    * @param component_id MAVLink component ID.
    * @return true if initialization is successful.
    */
-  bool init(std::function<void(const int tid, const std::vector<uint8_t> &)> recv_cb,
-            const std::string & port_name, int baud_rate,
-            uint8_t system_id = 1, uint8_t component_id = 1);
+  bool init(
+    std::function<void(uint8_t, uint8_t, const std::vector<uint8_t>&)> recv_cb,
+    const std::string & port_name, int baud_rate, uint8_t system_id = 1, uint8_t component_id = 1
+  );
 
   /**
    * @brief Close the serial port.
@@ -150,7 +151,7 @@ private:
   int fd_;
   std::thread mav_recv_thread_;
   std::mutex fd_mutex_;
-  std::function<void(const int tid, const std::vector<uint8_t> &)> receive_callback_;
+  std::function<void(uint8_t, uint8_t, const std::vector<uint8_t>&)> receive_callback_;
   std::atomic<bool> running_;
 
   // Parameterized MAVLink system and component IDs.

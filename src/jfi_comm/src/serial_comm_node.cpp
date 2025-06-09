@@ -39,7 +39,7 @@ SerialCommNode::SerialCommNode()
   // Create subscriptions for outgoing messages.
   sub_to_serial_ranging_ = create_subscription<uwb_msgs::msg::Ranging>(
     topic_prefix_jfi_ + "in/ranging",
-    qos_profile_sensor_data,
+    rclcpp::SensorDataQoS(),
     [this](uwb_msgs::msg::Ranging::SharedPtr msg) {
       auto data = jfi_comm_.serialize_message(msg);
       if (!data.empty()) {
@@ -49,7 +49,7 @@ SerialCommNode::SerialCommNode()
 
   sub_to_serial_trajectory_ = create_subscription<px4_msgs::msg::TrajectorySetpoint>(
     topic_prefix_jfi_ + "in/target",
-    qos_profile_sensor_data,
+    rclcpp::SensorDataQoS(),
     [this](px4_msgs::msg::TrajectorySetpoint::SharedPtr msg) {
       auto data = jfi_comm_.serialize_message(msg);
       if (!data.empty()) {
@@ -62,12 +62,12 @@ SerialCommNode::SerialCommNode()
     if (id == system_id_) continue;
     // Ranging
     auto r_pub = create_publisher<uwb_msgs::msg::Ranging>(
-      topic_prefix_jfi_ + "out/drone" + std::to_string(id) + "/ranging", qos_profile_sensor_data);
+      topic_prefix_jfi_ + "out/drone" + std::to_string(id) + "/ranging", rclcpp::SensorDataQoS());
     pub_ranging_map_[id] = r_pub;
 
     // TrajectorySetpoint
     auto t_pub = create_publisher<px4_msgs::msg::TrajectorySetpoint>(
-      topic_prefix_jfi_ + "out/drone" + std::to_string(id) + "/target", qos_profile_sensor_data);
+      topic_prefix_jfi_ + "out/drone" + std::to_string(id) + "/target", rclcpp::SensorDataQoS());
     pub_trajectory_map_[id] = t_pub;
   }
 }

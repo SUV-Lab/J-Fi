@@ -48,7 +48,7 @@ private:
   std::string topic_prefix_jfi_;
 
   // List of all drone system IDs in the network
-  std::vector<int> system_id_list_;
+  std::vector<int64_t> system_id_list_;
 
   // Subscriptions for outgoing messages to serial
   rclcpp::Subscription<uwb_msgs::msg::Ranging>::SharedPtr            sub_to_serial_ranging_;
