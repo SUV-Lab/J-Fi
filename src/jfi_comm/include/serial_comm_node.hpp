@@ -3,10 +3,12 @@
 
 #include <chrono>
 #include <map>
-#include <vector>
+#include <mutex>
+#include <optional>
 #include <string>
-#include <rclcpp/rclcpp.hpp>
+#include <vector>
 
+#include <rclcpp/rclcpp.hpp>
 #include <uwb_msgs/msg/ranging.hpp>
 #include <px4_msgs/msg/trajectory_setpoint.hpp>
 
@@ -17,46 +19,60 @@ using namespace std::chrono_literals;
 class SerialCommNode : public rclcpp::Node
 {
 public:
-  enum TID{
-    TID_RANGING = 1,
+  enum TID : uint8_t
+  {
+    TID_RANGING    = 1,
     TID_TRAJECTORY = 2,
+    TID_BATCH      = 99          ///< container for TLV-bundled messages
   };
 
   SerialCommNode();
   ~SerialCommNode();
 
 private:
-  /**
-   * @brief Handle incoming JFI data.
-   * @param tid Message type ID (Ranging or TrajectorySetpoint)
-   * @param src_sysid MAVLink sysid of the sending drone
-   * @param data Serialized ROS2 message bytes
-   */
-  void handleMessage(int tid, uint8_t src_sysid, const std::vector<uint8_t>& data);
+  /* ---------- Callbacks -------------------------------------------------- */
+  void handleMessage(int tid,
+                     uint8_t src_sysid,
+                     const std::vector<uint8_t>& data);
 
+  void timerCallback();                   ///< 25 Hz flush-and-send routine
+  static void writeTLV(std::vector<uint8_t>& buf,
+                       uint8_t tid,
+                       const std::vector<uint8_t>& payload);
+
+  /* ---------- Members ---------------------------------------------------- */
   JFiComm jfi_comm_;
 
-  // Serial port settings
+  // Serial port parameters
   std::string port_name_;
-  int baud_rate_;
+  int         baud_rate_;
 
-  // MAVLink IDs for this node
+  // Local MAVLink identity
   uint8_t system_id_;
   uint8_t component_id_;
 
-  // Prefix for JFI topics (e.g., "drone1/jfi/")
+  // ROS topic prefix   (e.g. "drone1/jfi/")
   std::string topic_prefix_jfi_;
 
-  // List of all drone system IDs in the network
+  // All drone IDs in the swarm
   std::vector<int64_t> system_id_list_;
 
-  // Subscriptions for outgoing messages to serial
-  rclcpp::Subscription<uwb_msgs::msg::Ranging>::SharedPtr            sub_to_serial_ranging_;
-  rclcpp::Subscription<px4_msgs::msg::TrajectorySetpoint>::SharedPtr sub_to_serial_trajectory_;
+  /* ROS interfaces -------------------------------------------------------- */
+  // Subscriptions (ROS → serial)
+  rclcpp::Subscription<uwb_msgs::msg::Ranging>::SharedPtr            sub_ranging_;
+  rclcpp::Subscription<px4_msgs::msg::TrajectorySetpoint>::SharedPtr sub_target_;
 
-  // Publishers for incoming messages from serial, keyed by source sysid
+  // Publishers   (serial → ROS)
   std::map<int, rclcpp::Publisher<uwb_msgs::msg::Ranging>::SharedPtr>            pub_ranging_map_;
-  std::map<int, rclcpp::Publisher<px4_msgs::msg::TrajectorySetpoint>::SharedPtr> pub_trajectory_map_;
+  std::map<int, rclcpp::Publisher<px4_msgs::msg::TrajectorySetpoint>::SharedPtr> pub_target_map_;
+
+  // timer
+  rclcpp::TimerBase::SharedPtr timer_;
+
+  /* Cached latest messages ------------------------------------------------ */
+  std::mutex cache_mtx_;
+  std::optional<uwb_msgs::msg::Ranging>            latest_ranging_;
+  std::optional<px4_msgs::msg::TrajectorySetpoint> latest_target_;
 };
 
 #endif  // SERIAL_COMM_NODE_HPP
