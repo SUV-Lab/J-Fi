@@ -20,7 +20,6 @@ JFiComm::JFiComm()
 
 JFiComm::~JFiComm()
 {
-  // Ensure the receiver thread is stopped and resources are released.
   running_ = false;
   if (mav_recv_thread_.joinable()) {
     mav_recv_thread_.join();
@@ -180,15 +179,15 @@ void JFiComm::send(const uint8_t tid, const std::vector<uint8_t> & data)
   mavlink_message_t mavlink_msg;
   mavlink_jfi_t jfi_msg;
   jfi_msg.tid = tid;
-  
-  // Ensure data length does not exceed the maximum size.
-  size_t copy_len = std::min(data.size(), sizeof(jfi_msg.data));
+  jfi_msg.len = data.size();
+
+  std::memset(jfi_msg.data, 0, sizeof(jfi_msg.data)); // clear data buffer
   std::memcpy(jfi_msg.data, data.data(), copy_len);
-  jfi_msg.len = copy_len;
   
   mavlink_msg_jfi_encode(system_id_, component_id_, &mavlink_msg, &jfi_msg);
   
   uint8_t buffer[MAVLINK_MAX_PACKET_LEN];
+  memset(buffer, 0, sizeof(buffer));
   size_t len = mavlink_msg_to_send_buffer(buffer, &mavlink_msg);
   
   // Send (future improvements may add rate control via a send buffer).
