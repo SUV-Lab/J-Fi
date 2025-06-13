@@ -182,7 +182,7 @@ void JFiComm::send(const uint8_t tid, const std::vector<uint8_t> & data)
   jfi_msg.len = data.size();
 
   std::memset(jfi_msg.data, 0, sizeof(jfi_msg.data)); // clear data buffer
-  std::memcpy(jfi_msg.data, data.data(), copy_len);
+  std::memcpy(jfi_msg.data, data.data(), jfi_msg.len);
   
   mavlink_msg_jfi_encode(system_id_, component_id_, &mavlink_msg, &jfi_msg);
   
