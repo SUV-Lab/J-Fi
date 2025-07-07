@@ -1,27 +1,27 @@
 # J-Fi ROS2 Bridge
 
-J-Fi is a ROS2 Serial Communication Library
+J-Fi is a ROS2 Serial Communication Interface
 
 ![image](https://github.com/user-attachments/assets/089d86cf-dab3-48db-b4c0-dfab6dbb34eb)
 
 ## Structure
 
-- **jfi_comm** : ROS2 Serial Communication Library
-- serial_comm_node : **Example** ROS2 Node of using a J-Fi library
+- **jfi_comm** : ROS2 Serial Communication Interface to use J-Fi module
+- serial_comm_node : **Example** ROS2 Node of using J-Fi Interface
 ```
 J-Fi/
 ├── config/
 │ ├── jfi.xml                     # Mavlink message definition.
 ├── include/
-│ ├── jfi_comm.hpp                # Header file for the JFi Library.
-│ └── serial_comm_node.hpp        # Header file for the Example ROS2 node using Library
+│ ├── jfi_comm.hpp                # Header file for the JFi Interface.
+│ └── serial_comm_node.hpp        # Header file for the Example ROS2 node using Interface
 ├── launch/
 │ ├── test_simulation.launch.py   # Example Launch file for simulation tests using virtual serial ports.
 │ └── serial_comm_node.launch.py  # Example Launch file for running the node in a real environment.
 ├── mavlink/
 └── src/
-  ├── jfi_comm.cpp                # Implementation of the JFi Library.
-  ├── serial_comm_node.cpp        # Implementation of the Example ROS2 node using Library
+  ├── jfi_comm.cpp                # Implementation of the JFi Interface.
+  ├── serial_comm_node.cpp        # Implementation of the Example ROS2 node using Interface
   └── main.cpp
 ```
 
@@ -31,7 +31,7 @@ J-Fi/
 
 ## Prerequisites
 
-- **ROS2**: Tested on ROS2 Humble (or specify your version).
+- **ROS2**: Tested on ROS2 Humble/Jazzy.
 - **socat**: (For simulation) Used to create virtual serial ports.
 
 ## Installation
@@ -76,5 +76,6 @@ ros2 launch jfi_comm serial_comm_node.launch.py port_name:=/dev/ttyUSB1 baud_rat
 
 ## TODO
 
-- develop send buffer concept
 - fix the bugs (#2)
+- Github Repo 구조 변경
+- 실제 환경에서 사용 시 발생한 문제점들 보완
