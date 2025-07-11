@@ -19,7 +19,6 @@ ExternalProject_Add(
 )
 include_directories(${CMAKE_INSTALL_PREFIX}/mavlink/include)
 
-
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
@@ -28,12 +27,19 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
+find_package(rosidl_default_generators REQUIRED)
 find_package(px4_msgs REQUIRED)
+
+# Generate custom messages
+rosidl_generate_interfaces(${PROJECT_NAME}
+  "msg/PolyTraj.msg"
+  DEPENDENCIES std_msgs
+)
 
 # Include headers
 include_directories(include)
 
-# Add compiler options for disable Suppress Warnings, This code prevents the build from failing due to warnings about alignment issues caused by auto-generated mavlink packed structures.
+# Add compiler options for disable Suppress Warnings
 add_compile_options(-Wno-pedantic -Wno-address-of-packed-member)
 
 # Build library
@@ -61,8 +67,13 @@ ament_target_dependencies(serial_comm_node_lib
   std_msgs
   px4_msgs
 )
+# Link against generated message interfaces
+rosidl_get_typesupport_target(cpp_typesupport_target
+  ${PROJECT_NAME} "rosidl_typesupport_cpp"
+)
 target_link_libraries(serial_comm_node_lib
   jfi_comm_lib
+  ${cpp_typesupport_target}
 )
 
 # Build executable
@@ -76,8 +87,8 @@ ament_target_dependencies(serial_comm_node
 )
 target_link_libraries(serial_comm_node
   serial_comm_node_lib
+  ${cpp_typesupport_target}
 )
-
 
 install(TARGETS
   jfi_comm_lib
