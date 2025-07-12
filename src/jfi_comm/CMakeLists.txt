@@ -28,6 +28,7 @@ find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
+find_package(rosidl_cmake REQUIRED)
 find_package(px4_msgs REQUIRED)
 
 # Generate custom messages
@@ -62,18 +63,20 @@ target_include_directories(jfi_comm_lib PUBLIC
 add_library(serial_comm_node_lib
   src/serial_comm_node.cpp
 )
+add_dependencies(serial_comm_node_lib
+  mavlink
+)
 ament_target_dependencies(serial_comm_node_lib
   rclcpp
   std_msgs
   px4_msgs
 )
-# Link against generated message interfaces
-rosidl_get_typesupport_target(cpp_typesupport_target
-  ${PROJECT_NAME} "rosidl_typesupport_cpp"
-)
+# Link against generated message interfaces and jfi_comm_lib
 target_link_libraries(serial_comm_node_lib
   jfi_comm_lib
-  ${cpp_typesupport_target}
+)
+rosidl_target_interfaces(serial_comm_node_lib
+  ${PROJECT_NAME} "rosidl_typesupport_cpp"
 )
 
 # Build executable
@@ -87,7 +90,6 @@ ament_target_dependencies(serial_comm_node
 )
 target_link_libraries(serial_comm_node
   serial_comm_node_lib
-  ${cpp_typesupport_target}
 )
 
 install(TARGETS
