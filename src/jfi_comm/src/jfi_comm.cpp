@@ -20,6 +20,7 @@ JFiComm::JFiComm()
 
 JFiComm::~JFiComm()
 {
+  // Ensure the receiver thread is stopped and resources are released.
   running_ = false;
   if (mav_recv_thread_.joinable()) {
     mav_recv_thread_.join();
@@ -27,9 +28,10 @@ JFiComm::~JFiComm()
   closePort();
 }
 
-bool JFiComm::init(std::function<void(const int tid, const std::vector<uint8_t> &)> recv_cb,
-                   const std::string & port_name, int baud_rate,
-                   uint8_t system_id, uint8_t component_id)
+bool JFiComm::init(
+  std::function<void(uint8_t, uint8_t, const std::vector<uint8_t>&)> recv_cb,
+  const std::string & port_name, int baud_rate,uint8_t system_id, uint8_t component_id
+)
 {
   receive_callback_ = recv_cb;
   system_id_ = system_id;
@@ -78,12 +80,20 @@ void JFiComm::recvMavLoop()
     for (ssize_t i = 0; i < n; ++i) {
       if (mavlink_parse_char(MAVLINK_COMM_0, rx_buffer_[i], &message, &status) == 1) {
         if (message.msgid == MAVLINK_MSG_ID_JFI) {
+          mavlink_jfi_t jfi_msg;
+          mavlink_msg_jfi_decode(&message, &jfi_msg);
+
+          std::vector<uint8_t> data(
+            jfi_msg.data,
+            jfi_msg.data + jfi_msg.len
+          );
+
+          uint8_t src_sysid = message.sysid;
+
           // RCLCPP_INFO(rclcpp::get_logger("JFiComm"), "RECV");
-          mavlink_jfi_t jfi_msg_;
-          mavlink_msg_jfi_decode(&message, &jfi_msg_);
-          std::vector<uint8_t> data(jfi_msg_.data, jfi_msg_.data + jfi_msg_.len);
+
           if (receive_callback_) {
-            receive_callback_(jfi_msg_.tid, data);
+            receive_callback_(jfi_msg.tid, src_sysid, data);
           }
         } else {
           RCLCPP_WARN(rclcpp::get_logger("JFiComm"), "[recvMavLoop] Unknown message ID: %d", message.msgid);
@@ -180,12 +190,11 @@ void JFiComm::send(const uint8_t tid, const std::vector<uint8_t> & data)
   mavlink_jfi_t jfi_msg;
   jfi_msg.tid = tid;
   jfi_msg.len = data.size();
-
-  std::memset(jfi_msg.data, 0, sizeof(jfi_msg.data)); // clear data buffer
-  std::memcpy(jfi_msg.data, data.data(), jfi_msg.len);
+  
+  std::memset(jfi_msg.data, 0, sizeof(jfi_msg.data));   // clear data buffer
+  std::memcpy(jfi_msg.data, data.data(), jfi_msg.len);  // copy data into message
   
   mavlink_msg_jfi_encode(system_id_, component_id_, &mavlink_msg, &jfi_msg);
-  
   uint8_t buffer[MAVLINK_MAX_PACKET_LEN];
   memset(buffer, 0, sizeof(buffer));
   size_t len = mavlink_msg_to_send_buffer(buffer, &mavlink_msg);
