@@ -26,8 +26,7 @@ endif()
 # Find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
-find_package(uwb_msgs REQUIRED)
-find_package(px4_msgs REQUIRED)
+find_package(std_msgs REQUIRED)
 
 # Include headers
 include_directories(include)
@@ -57,8 +56,7 @@ add_library(serial_comm_node_lib
 )
 ament_target_dependencies(serial_comm_node_lib
   rclcpp
-  uwb_msgs
-  px4_msgs
+  std_msgs
 )
 target_link_libraries(serial_comm_node_lib
   jfi_comm_lib
@@ -70,8 +68,7 @@ add_executable(serial_comm_node
 )
 ament_target_dependencies(serial_comm_node
   rclcpp
-  uwb_msgs
-  px4_msgs
+  std_msgs
 )
 target_link_libraries(serial_comm_node
   serial_comm_node_lib
