@@ -21,58 +21,51 @@ from launch.actions import (
 from launch.event_handlers import OnProcessStart, OnProcessExit
 
 def launch_setup(context, *args, **kwargs):
-    # Start socat to create virtual PTYs.
+    # Create two virtual serial ports using socat and connect them to each other.
     socat_process = ExecuteProcess(
-        cmd=[FindExecutable(name='socat'), 'PTY,link=/tmp/virtual_tty1', 'PTY,link=/tmp/virtual_tty2'],
+        cmd=[FindExecutable(name='socat'), 'PTY,link=/tmp/virtual_tty1,raw,echo=0', 'PTY,link=/tmp/virtual_tty2,raw,echo=0'],
         output='screen',
+        shell=True
     )
 
-    # Define the publisher node (pub_comm_node)
-    pub_comm_node = Node(
+    node1 = Node(
         package='jfi_comm',
         executable='serial_comm_node',
-        name='pub_comm_node',
+        name='node1',
         output='screen',
         parameters=[
             {'port_name': '/tmp/virtual_tty1'},
-            {'baud_rate': 57600},
+            {'baud_rate': 115200},
             {'system_id': 1},
             {'component_id': 1}
+        ],
+        remappings=[
+            ('jfi_comm/in/string', 'node1/received_string'),
+            ('jfi_comm/in/float_array', 'node1/received_float_array')
         ]
     )
 
-    # Define the subscriber node (sub_comm_node)
-    sub_comm_node = Node(
+    node2 = Node(
         package='jfi_comm',
         executable='serial_comm_node',
-        name='sub_comm_node',
+        name='node2',
         output='screen',
         parameters=[
             {'port_name': '/tmp/virtual_tty2'},
-            {'baud_rate': 57600},
+            {'baud_rate': 115200},
             {'system_id': 2},
             {'component_id': 2}
-        ]
-    )
-
-    # Define the talker node (publishes std_msgs/String)
-    topic_pub = Node(
-        package='demo_nodes_cpp',
-        executable='talker',
-        name='hello_publisher',
-        output='screen',
-        parameters=[{'publish_rate': 1.0}],
-        remappings=[
-            ('chatter', '/to_serial_string')
         ],
-        arguments=['--ros-args', '--log-level', 'info']
+        remappings=[
+            ('jfi_comm/in/string', 'node2/received_string'),
+            ('jfi_comm/in/float_array', 'node2/received_float_array')
+        ]
     )
 
     nodes_to_start = [
         socat_process,
-        pub_comm_node,
-        sub_comm_node,
-        topic_pub,
+        node1,
+        node2,
     ]
 
     return nodes_to_start
