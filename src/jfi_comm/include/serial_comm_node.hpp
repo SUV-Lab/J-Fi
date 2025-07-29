@@ -16,16 +16,12 @@ using namespace std::chrono_literals;
 /**
  * @class SerialCommNode
  * @brief An example node demonstrating how to use the JFiComm library.
- * * - Periodically sends a std_msgs::msg::String message via serial.
- * - Listens for incoming serial data, deserializes it into ROS messages,
- * and publishes them to ROS topics.
  */
 class SerialCommNode : public rclcpp::Node
 {
 public:
   /**
-   * @brief Defines the unique identifiers for different message types
-   * being sent over MAVLink.
+   * @brief Defines the unique identifiers for different message types being sent over MAVLink.
    */
   enum TID : uint8_t
   {
@@ -44,11 +40,6 @@ private:
                      uint8_t src_sysid,
                      const std::vector<uint8_t>& data);
 
-  /**
-   * @brief Timer callback to periodically send a string message.
-   */
-  void sendStringTimerCallback();
-
   /* ---------- Members ---------------------------------------------------- */
   JFiComm jfi_comm_;
 
@@ -61,17 +52,13 @@ private:
   uint8_t component_id_;
 
   /* ROS interfaces -------------------------------------------------------- */
-  // Publisher for incoming Float64MultiArray data from another device
-  rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr pub_float_array_;
-  
-  // Publisher for incoming String data from another device
+  // Publisher for incoming data from another device
   rclcpp::Publisher<std_msgs::msg::String>::SharedPtr pub_string_;
+  rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr pub_float_array_;
 
-  // Timer to trigger sending our own string message
-  rclcpp::TimerBase::SharedPtr send_string_timer_;
-
-  // Counter for the message to be sent
-  size_t send_count_ = 0;
+  // Subscriber for data to be sent to another device
+  rclcpp::Subscription<std_msgs::msg::String>::SharedPtr sub_string_;
+  rclcpp::Subscription<std_msgs::msg::Float64MultiArray>::SharedPtr sub_float_array_;
 };
 
 #endif  // SERIAL_COMM_NODE_HPP

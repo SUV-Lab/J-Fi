@@ -21,50 +21,42 @@ SerialCommNode::SerialCommNode()
               system_id_, port_name_.c_str(), baud_rate_);
 
   /* -------- 2. JFiComm initialization --------------------------------- */
-  // Initialize jfi_comm with a callback to handle received messages
   if (!jfi_comm_.init(
         std::bind(&SerialCommNode::handleMessage, this,
                   std::placeholders::_1, std::placeholders::_2, std::placeholders::_3),
         port_name_, baud_rate_, system_id_, component_id_))
   {
     RCLCPP_FATAL(get_logger(), "Failed to initialise JFiComm. Shutting down.");
-    // In a real app, you might want to handle this more gracefully.
-    // For this example, we'll just throw an exception.
     throw std::runtime_error("JFiComm init failed");
   }
 
-  /* -------- 3. ROS Publishers ------------------------------------------ */
+  /* -------- 3. ROS Publishers (Serial -> ROS) ------------------------- */
   // Create publishers for messages received FROM the serial port
   pub_float_array_ = create_publisher<std_msgs::msg::Float64MultiArray>("jfi_comm/in/float_array", 10);
   pub_string_ = create_publisher<std_msgs::msg::String>("jfi_comm/in/string", 10);
 
-  /* -------- 4. ROS Timer for Sending Data ----------------------------- */
-  // Create a timer to periodically send a String message TO the serial port
-  send_string_timer_ = create_wall_timer(1s, std::bind(&SerialCommNode::sendStringTimerCallback, this));
+  /* -------- 4. ROS Subscribers (ROS -> Serial) ------------------------ */
+  // Create subscribers for messages send TO the serial port
+  sub_string_ = create_subscription<std_msgs::msg::String>(
+    "jfi_comm/out/string", 10,
+    [this](const std_msgs::msg::String::SharedPtr msg) {
+      RCLCPP_INFO(get_logger(), "Received String on topic, sending to serial...");
+      auto serialized_data = jfi_comm_.serialize_message(msg);
+      jfi_comm_.send(TID_ROS_STRING, serialized_data);
+    });
+  sub_float_array_ = create_subscription<std_msgs::msg::Float64MultiArray>(
+    "jfi_comm/out/float_array", 10,
+    [this](const std_msgs::msg::Float64MultiArray::SharedPtr msg) {
+      RCLCPP_INFO(get_logger(), "Received Float64MultiArray on topic, sending to serial...");
+      auto serialized_data = jfi_comm_.serialize_message(msg);
+      jfi_comm_.send(TID_ROS_FLOATS, serialized_data);
+    });
 }
 
 SerialCommNode::~SerialCommNode()
 {
   RCLCPP_INFO(get_logger(), "Shutting down SerialCommNode");
   jfi_comm_.closePort();
-}
-
-/**
- * @brief This function is called every second to send a sample string message.
- */
-void SerialCommNode::sendStringTimerCallback()
-{
-  // 1. Create a ROS message
-  auto msg = std::make_shared<std_msgs::msg::String>();
-  msg->data = "Hello from sysid " + std::to_string(system_id_) + "! Count: " + std::to_string(send_count_++);
-
-  RCLCPP_INFO(get_logger(), "Sending: '%s'", msg->data.c_str());
-
-  // 2. Serialize the message into a byte vector
-  auto serialized_data = jfi_comm_.serialize_message(msg);
-
-  // 3. Send the serialized data with a specific TID
-  jfi_comm_.send(TID_ROS_STRING, serialized_data);
 }
 
 /**
@@ -96,6 +88,10 @@ void SerialCommNode::handleMessage(uint8_t tid,
         // Deserialize the byte vector back into a ROS message
         auto msg = jfi_comm_.deserialize_message<std_msgs::msg::Float64MultiArray>(data);
         RCLCPP_INFO(get_logger(), "  -> Deserialized %zu floats.", msg.data.size());
+        // int index = 0;
+        // for (const auto& value : msg.data) {
+        //   RCLCPP_INFO(get_logger(), "    [%d]: %f", index++, value);
+        // }
         // Publish the message to a ROS topic
         pub_float_array_->publish(msg);
       } catch (const std::exception& e) {
