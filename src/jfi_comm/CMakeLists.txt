@@ -19,7 +19,6 @@ ExternalProject_Add(
 )
 include_directories(${CMAKE_INSTALL_PREFIX}/mavlink/include)
 
-
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
@@ -27,28 +26,30 @@ endif()
 # Find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
-find_package(std_msgs REQUIRED)
+find_package(uwb_msgs REQUIRED)
+find_package(px4_msgs REQUIRED)
 
 # Include headers
 include_directories(include)
 
-# Add compiler options for disable Suppress Warnings, This code prevents the build from failing due to warnings about alignment issues caused by auto-generated mavlink packed structures.
+# suppress warnings from auto-generated packed MAVLink structs
 add_compile_options(-Wno-pedantic -Wno-address-of-packed-member)
 
 # Build library
 add_library(jfi_comm_lib
   src/jfi_comm.cpp
+  src/vendor/lz4/lz4.c
 )
 add_dependencies(jfi_comm_lib
   mavlink
 )
 ament_target_dependencies(jfi_comm_lib
   rclcpp
-  std_msgs
 )
 target_include_directories(jfi_comm_lib PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/vendor>
 )
 
 add_library(serial_comm_node_lib
@@ -56,7 +57,8 @@ add_library(serial_comm_node_lib
 )
 ament_target_dependencies(serial_comm_node_lib
   rclcpp
-  std_msgs
+  uwb_msgs
+  px4_msgs
 )
 target_link_libraries(serial_comm_node_lib
   jfi_comm_lib
@@ -68,12 +70,12 @@ add_executable(serial_comm_node
 )
 ament_target_dependencies(serial_comm_node
   rclcpp
-  std_msgs
+  uwb_msgs
+  px4_msgs
 )
 target_link_libraries(serial_comm_node
   serial_comm_node_lib
 )
-
 
 install(TARGETS
   jfi_comm_lib

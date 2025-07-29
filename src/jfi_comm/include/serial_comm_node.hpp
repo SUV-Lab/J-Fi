@@ -2,58 +2,77 @@
 #define SERIAL_COMM_NODE_HPP
 
 #include <chrono>
-#include <rclcpp/rclcpp.hpp>
+#include <map>
+#include <mutex>
+#include <optional>
+#include <string>
+#include <vector>
 
-#include <std_msgs/msg/string.hpp>
-#include <std_msgs/msg/int32.hpp>
+#include <rclcpp/rclcpp.hpp>
+// #include <uwb_msgs/msg/ranging.hpp>
+#include <px4_msgs/msg/trajectory_setpoint.hpp>
 
 #include "jfi_comm.hpp"
 
 using namespace std::chrono_literals;
 
-/**
- * @class SerialCommNode
- * @brief ROS2 node example that uses the JFiComm library to bridge ROS2 topics and MAVLink serial communication.
- *
- *  - Subscribes to /to_serial -> sends data using the library
- *  - When a MAVLink message is received, converts it and publishes to /from_serial
- */
 class SerialCommNode : public rclcpp::Node
 {
 public:
-  enum TID{
-    TID_STRING = 1,
-    TID_INT = 2,
+  enum TID : uint8_t
+  {
+    // TID_RANGING    = 1,
+    TID_TRAJECTORY = 2,
+    TID_BATCH      = 99          ///< container for TLV-bundled messages
   };
 
-public:
   SerialCommNode();
   ~SerialCommNode();
 
 private:
-  /**
-   * @brief Callback invoked when a MAVLink message is received.
-   *
-   * @param tid Message type identifier.
-   * @param msg Received message data as a byte vector.
-   */
-  void handleMessage(const int tid, const std::vector<uint8_t>& msg);
+  /* ---------- Callbacks -------------------------------------------------- */
+  void handleMessage(int tid,
+                     uint8_t src_sysid,
+                     const std::vector<uint8_t>& data);
 
-private:
-  JFiComm       jfi_comm_;
+  void timerCallback();                   ///< 25 Hz flush-and-send routine
+  static void writeTLV(std::vector<uint8_t>& buf,
+                       uint8_t tid,
+                       const std::vector<uint8_t>& payload);
 
-  // Parameters
-  std::string   port_name_;
-  int           baud_rate_;
-  uint8_t       system_id_;
-  uint8_t       component_id_;
+  /* ---------- Members ---------------------------------------------------- */
+  JFiComm jfi_comm_;
 
-  // ROS subscriptions and publishers
-  rclcpp::Subscription<std_msgs::msg::String>::SharedPtr sub_to_serial_string_;
-  rclcpp::Subscription<std_msgs::msg::Int32>::SharedPtr sub_to_serial_int_;
-  
-  rclcpp::Publisher<std_msgs::msg::String>::SharedPtr pub_from_serial_string_;
-  rclcpp::Publisher<std_msgs::msg::Int32>::SharedPtr pub_from_serial_int_;
+  // Serial port parameters
+  std::string port_name_;
+  int         baud_rate_;
+
+  // Local MAVLink identity
+  uint8_t system_id_;
+  uint8_t component_id_;
+
+  // ROS topic prefix   (e.g. "drone1/jfi/")
+  std::string topic_prefix_jfi_;
+
+  // All drone IDs in the swarm
+  std::vector<int64_t> system_id_list_;
+
+  /* ROS interfaces -------------------------------------------------------- */
+  // Subscriptions (ROS → serial)
+  // rclcpp::Subscription<uwb_msgs::msg::Ranging>::SharedPtr            sub_ranging_;
+  rclcpp::Subscription<px4_msgs::msg::TrajectorySetpoint>::SharedPtr sub_target_;
+
+  // Publishers   (serial → ROS)
+  // std::map<int, rclcpp::Publisher<uwb_msgs::msg::Ranging>::SharedPtr>            pub_ranging_map_;
+  std::map<int, rclcpp::Publisher<px4_msgs::msg::TrajectorySetpoint>::SharedPtr> pub_target_map_;
+
+  // timer
+  rclcpp::TimerBase::SharedPtr timer_;
+
+  /* Cached latest messages ------------------------------------------------ */
+  std::mutex cache_mtx_;
+  // std::optional<uwb_msgs::msg::Ranging>            latest_ranging_;
+  std::optional<px4_msgs::msg::TrajectorySetpoint> latest_target_;
 };
 
 #endif  // SERIAL_COMM_NODE_HPP
