@@ -9,7 +9,7 @@ J-Fi is a ROS2 Serial Communication Interface
 - **jfi_comm** : ROS2 Serial Communication Interface to use J-Fi module
 - serial_comm_node : **Example** ROS2 Node of using J-Fi Interface
 ```
-J-Fi/
+jfi_comm/
 ├── config/
 │ ├── jfi.xml                     # Mavlink message definition.
 ├── include/
@@ -20,6 +20,7 @@ J-Fi/
 │ └── serial_comm_node.launch.py  # Example Launch file for running the node in a real environment.
 ├── mavlink/
 └── src/
+  ├── vendor/                     # LZ4 Compression Algorithm
   ├── jfi_comm.cpp                # Implementation of the JFi Interface.
   ├── serial_comm_node.cpp        # Implementation of the Example ROS2 node using Interface
   └── main.cpp
@@ -28,6 +29,7 @@ J-Fi/
 ## Features
 
 - **MAVLink Message Handling**: Encodes ROS2 messages into MAVLink messages and decodes received MAVLink messages back into ROS2 messages.
+- **LZ4 Compression**: LZ4 compression algorithms enable data transfer larger than maximum size
 
 ## Prerequisites
 
