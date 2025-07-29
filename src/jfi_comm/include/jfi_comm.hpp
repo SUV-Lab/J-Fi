@@ -23,6 +23,13 @@
 
 #include "mavlink/jfi/mavlink.h"
 
+#include "lz4.h"
+
+enum class CompressionType : uint8_t {
+    NONE = 0,
+    LZ4  = 1,
+};
+
 /**
  * @class JFiComm
  * @brief A library that implements serial communication using MAVLink.
@@ -160,6 +167,9 @@ private:
 
   // Fixed buffer for receiving data to minimize dynamic allocations.
   std::array<uint8_t, 256> rx_buffer_;
+
+  // Reuse buffer for decompression (minimize memory allocation)
+  std::vector<uint8_t> decompression_buffer_; 
 };
 
 #endif  // JFI_COMM_HPP
