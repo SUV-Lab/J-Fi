@@ -129,6 +129,8 @@ void SerialCommNode::handleMessage(const int tid, const std::vector<uint8_t> & d
         polytraj_msg.coef_y = new_coef_y;
         polytraj_msg.coef_z = std::vector<float>(target_size, 0.0f);
 
+        pub_from_serial_poly_traj_->publish(polytraj_msg);
+
         // RCLCPP_INFO(this->get_logger(), "Received and published TID_POLY_TRAJ message.");
       } catch (const std::exception & e) {
         // RCLCPP_ERROR(this->get_logger(), "[SerialCommNode] Failed to deserialize TID_POLY_TRAJ message: %s", e.what());
