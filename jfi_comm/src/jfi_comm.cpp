@@ -81,9 +81,48 @@ void JFiComm::recvMavLoop()
           // RCLCPP_INFO(rclcpp::get_logger("JFiComm"), "RECV");
           mavlink_jfi_t jfi_msg_;
           mavlink_msg_jfi_decode(&message, &jfi_msg_);
-          std::vector<uint8_t> data(jfi_msg_.data, jfi_msg_.data + jfi_msg_.len);
+          std::vector<uint8_t> payload(jfi_msg_.data, jfi_msg_.data + jfi_msg_.len);
+          if (payload.size() < 2) {
+              RCLCPP_WARN(rclcpp::get_logger("JFiComm"), "Wrong payload size: %zu, expected at least 2 bytes", payload.size());
+              continue;
+          }
+
+          uint8_t seq = payload[0];
+          uint8_t total = payload[1];
+          std::vector<uint8_t> chunk(payload.begin() + 2, payload.end());
+
+          std::vector<uint8_t> full_compressed;
+          if (total == 1) {
+              full_compressed = std::move(chunk);
+          } else {
+              std::lock_guard<std::mutex> lock(chunk_mutex_);
+              auto& chunks = chunk_buffers_[jfi_msg_.tid];
+              if (chunks.size() < total) chunks.resize(total);
+              chunks[seq] = std::move(chunk);
+              bool complete = true;
+              for (const auto& c : chunks) {
+                  if (c.empty()) {
+                      complete = false;
+                      break;
+                  }
+              }
+              if (!complete) continue;
+
+              for (const auto& c : chunks) {
+                  full_compressed.insert(full_compressed.end(), c.begin(), c.end());
+              }
+              chunks.clear();
+          }
+
+          std::string decompressed_str;
+          if (!snappy::Uncompress(reinterpret_cast<const char*>(full_compressed.data()), full_compressed.size(), &decompressed_str)) {
+              RCLCPP_ERROR(rclcpp::get_logger("JFiComm"), "Failed to decompress data");
+              continue;
+          }
+          std::vector<uint8_t> decompressed(decompressed_str.begin(), decompressed_str.end());
+
           if (receive_callback_) {
-            receive_callback_(jfi_msg_.tid, data);
+              receive_callback_(jfi_msg_.tid, decompressed);
           }
         } else {
           RCLCPP_WARN(rclcpp::get_logger("JFiComm"), "[recvMavLoop] Unknown message ID: %d", message.msgid);
@@ -174,26 +213,60 @@ void JFiComm::closePort()
   }
 }
 
-void JFiComm::send(const uint8_t tid, const std::vector<uint8_t> & data)
-{
-  mavlink_message_t mavlink_msg;
-  mavlink_jfi_t jfi_msg;
-  jfi_msg.tid = tid;
-  jfi_msg.len = data.size();
+void JFiComm::send(const uint8_t tid, const std::vector<uint8_t>& data) {
+    std::string compressed_str;
+    snappy::Compress(reinterpret_cast<const char*>(data.data()), data.size(), &compressed_str);
+    std::vector<uint8_t> compressed(compressed_str.begin(), compressed_str.end());
 
-  std::memset(jfi_msg.data, 0, sizeof(jfi_msg.data)); // clear data buffer
-  std::memcpy(jfi_msg.data, data.data(), jfi_msg.len);
-  
-  mavlink_msg_jfi_encode(system_id_, component_id_, &mavlink_msg, &jfi_msg);
-  
-  uint8_t buffer[MAVLINK_MAX_PACKET_LEN];
-  memset(buffer, 0, sizeof(buffer));
-  size_t len = mavlink_msg_to_send_buffer(buffer, &mavlink_msg);
-  
-  // Send (future improvements may add rate control via a send buffer).
-  writeData(std::vector<uint8_t>(buffer, buffer + len));
-  
-  // RCLCPP_INFO(rclcpp::get_logger("JFiComm"), "PUSH");
+    if (compressed.empty()) {
+        RCLCPP_ERROR(rclcpp::get_logger("JFiComm"), "Failed to compress data, empty input");
+        return;
+    }
+
+    const size_t max_chunk = 248;
+    if (compressed.size() <= max_chunk) {
+        std::vector<uint8_t> payload(2 + compressed.size());
+        payload[0] = 0;  // seq
+        payload[1] = 1;  // total
+        std::copy(compressed.begin(), compressed.end(), payload.begin() + 2);
+        mavlink_message_t mavlink_msg;
+        mavlink_jfi_t jfi_msg;
+        jfi_msg.tid = tid;
+        jfi_msg.len = payload.size();
+        std::memset(jfi_msg.data, 0, sizeof(jfi_msg.data));
+        std::memcpy(jfi_msg.data, payload.data(), jfi_msg.len);
+        mavlink_msg_jfi_encode(system_id_, component_id_, &mavlink_msg, &jfi_msg);
+
+        uint8_t buffer[MAVLINK_MAX_PACKET_LEN];
+        std::memset(buffer, 0, sizeof(buffer));
+        size_t len = mavlink_msg_to_send_buffer(buffer, &mavlink_msg);
+        writeData(std::vector<uint8_t>(buffer, buffer + len));
+    } else {
+        uint8_t total_chunks = static_cast<uint8_t>((compressed.size() + max_chunk - 1) / max_chunk);
+        size_t offset = 0;
+        for (uint8_t seq = 0; seq < total_chunks; ++seq) {
+            size_t chunk_size = std::min(max_chunk, compressed.size() - offset);
+            std::vector<uint8_t> payload(2 + chunk_size);
+            payload[0] = seq;
+            payload[1] = total_chunks;
+            std::copy(compressed.begin() + offset, compressed.begin() + offset + chunk_size, payload.begin() + 2);
+
+            mavlink_message_t mavlink_msg;
+            mavlink_jfi_t jfi_msg;
+            jfi_msg.tid = tid;
+            jfi_msg.len = payload.size();
+            std::memset(jfi_msg.data, 0, sizeof(jfi_msg.data));
+            std::memcpy(jfi_msg.data, payload.data(), jfi_msg.len);
+            mavlink_msg_jfi_encode(system_id_, component_id_, &mavlink_msg, &jfi_msg);
+
+            uint8_t buffer[MAVLINK_MAX_PACKET_LEN];
+            std::memset(buffer, 0, sizeof(buffer));
+            size_t len = mavlink_msg_to_send_buffer(buffer, &mavlink_msg);
+            writeData(std::vector<uint8_t>(buffer, buffer + len));
+
+            offset += chunk_size;
+        }
+    }
 }
 
 void JFiComm::writeData(const std::vector<uint8_t> & data)

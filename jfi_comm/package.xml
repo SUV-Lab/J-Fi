@@ -14,6 +14,10 @@
   <depend>std_msgs</depend>
   <depend>path_manager</depend>
 
+  <build_depend>libsnappy-dev</build_depend>
+  <build_export_depend>libsnappy-dev</build_export_depend>
+  <exec_depend>libsnappy-dev</exec_depend>
+
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>
 

@@ -28,6 +28,7 @@ find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(path_manager REQUIRED)
+find_package(Snappy REQUIRED)
 
 # Include headers
 include_directories(include)
@@ -50,6 +51,10 @@ ament_target_dependencies(jfi_comm_lib
 target_include_directories(jfi_comm_lib PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>
+)
+
+target_link_libraries(jfi_comm_lib
+    Snappy::snappy
 )
 
 add_library(serial_comm_node_lib
@@ -76,6 +81,7 @@ ament_target_dependencies(serial_comm_node
 )
 target_link_libraries(serial_comm_node
   serial_comm_node_lib
+  Snappy::snappy
 )
 
 install(TARGETS

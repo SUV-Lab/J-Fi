@@ -10,6 +10,8 @@
 #include <cstring>
 #include <atomic>
 #include <array>
+#include <snappy.h>
+#include <unordered_map>
 
 #include <termios.h>
 #include <sys/types.h>
@@ -152,6 +154,8 @@ private:
   std::mutex fd_mutex_;
   std::function<void(const int tid, const std::vector<uint8_t> &)> receive_callback_;
   std::atomic<bool> running_;
+  std::unordered_map<uint8_t, std::vector<std::vector<uint8_t>>> chunk_buffers_;  // tid -> chunks
+  std::mutex chunk_mutex_;
 
   // Parameterized MAVLink system and component IDs.
   uint8_t system_id_;
