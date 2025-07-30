@@ -93,9 +93,42 @@ void SerialCommNode::handleMessage(const int tid, const std::vector<uint8_t> & d
           RCLCPP_WARN(this->get_logger(), "coef_x size (%zu) differs from coef_y size (%zu), using coef_x size",
                       polytraj_msg.coef_x.size(), polytraj_msg.coef_y.size());
         }
-        size_t array_size = polytraj_msg.coef_x.size();
-        polytraj_msg.coef_z = std::vector<float>(array_size, 0.0f);
-        pub_from_serial_poly_traj_->publish(polytraj_msg);
+
+        size_t target_size = polytraj_msg.duration.size() * 6;
+
+        std::vector<float> new_coef_x;
+        new_coef_x.reserve(target_size);
+        size_t current_size = polytraj_msg.coef_x.size();
+        for (size_t i = 0; i < std::min(current_size, target_size); ++i) {
+          new_coef_x.push_back(polytraj_msg.coef_x[i]);
+        }
+        if (current_size > 0 && current_size < target_size) {
+          float last_value = polytraj_msg.coef_x[current_size - 1];
+          for (size_t i = current_size; i < target_size; ++i) {
+            new_coef_x.push_back(last_value);
+          }
+        } else if (current_size == 0) {
+          new_coef_x = std::vector<float>(target_size, 0.0f);
+        }
+        polytraj_msg.coef_x = new_coef_x;
+
+        std::vector<float> new_coef_y;
+        new_coef_y.reserve(target_size);
+        current_size = polytraj_msg.coef_y.size();
+        for (size_t i = 0; i < std::min(current_size, target_size); ++i) {
+          new_coef_y.push_back(polytraj_msg.coef_y[i]);
+        }
+        if (current_size > 0 && current_size < target_size) {
+          float last_value = polytraj_msg.coef_y[current_size - 1];
+          for (size_t i = current_size; i < target_size; ++i) {
+            new_coef_y.push_back(last_value);
+          }
+        } else if (current_size == 0) {
+          new_coef_y = std::vector<float>(target_size, 0.0f);
+        }
+        polytraj_msg.coef_y = new_coef_y;
+        polytraj_msg.coef_z = std::vector<float>(target_size, 0.0f);
+
         // RCLCPP_INFO(this->get_logger(), "Received and published TID_POLY_TRAJ message.");
       } catch (const std::exception & e) {
         // RCLCPP_ERROR(this->get_logger(), "[SerialCommNode] Failed to deserialize TID_POLY_TRAJ message: %s", e.what());
