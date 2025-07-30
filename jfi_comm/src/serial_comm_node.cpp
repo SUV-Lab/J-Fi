@@ -96,6 +96,12 @@ void SerialCommNode::handleMessage(const int tid, const std::vector<uint8_t> & d
     {
       try {
         path_manager::msg::PolyTraj polytraj_msg = jfi_comm_.deserialize_message<path_manager::msg::PolyTraj>(data);
+        if (polytraj_msg.coef_x.size() != polytraj_msg.coef_y.size()) {
+          RCLCPP_WARN(this->get_logger(), "coef_x size (%zu) differs from coef_y size (%zu), using coef_x size",
+                      polytraj_msg.coef_x.size(), polytraj_msg.coef_y.size());
+        }
+        size_t array_size = polytraj_msg.coef_x.size();
+        polytraj_msg.coef_z = std::vector<float>(array_size, 0.0f);
         pub_from_serial_poly_traj_->publish(polytraj_msg);
         // RCLCPP_INFO(this->get_logger(), "Received and published TID_POLY_TRAJ message.");
       } catch (const std::exception & e) {
