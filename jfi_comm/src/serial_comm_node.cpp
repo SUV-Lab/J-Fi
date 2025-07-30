@@ -43,25 +43,18 @@ SerialCommNode::SerialCommNode()
 
         modified_msg->coef_z.clear();
 
-        const float threshold = 1e-10;
         const int precision = 6;
+        const size_t max_size = 12;
         std::vector<float> optimized_coef_x, optimized_coef_y;
 
-        for (const auto &coef : modified_msg->coef_x)
-        {
-          if (std::abs(coef) >= threshold)
-          {
-            float rounded = std::round(coef * std::pow(10, precision)) / std::pow(10, precision);
-            optimized_coef_x.push_back(rounded);
-          }
+        if (modified_msg->coef_x.size() != modified_msg->coef_y.size()) {
+          RCLCPP_WARN(this->get_logger(), "Input coef_x size (%zu) differs from coef_y size (%zu)",
+                      modified_msg->coef_x.size(), modified_msg->coef_y.size());
         }
-        for (const auto &coef : modified_msg->coef_y)
-        {
-          if (std::abs(coef) >= threshold)
-          {
-            float rounded = std::round(coef * std::pow(10, precision)) / std::pow(10, precision);
-            optimized_coef_y.push_back(rounded);
-          }
+
+        for (size_t i = 0; i < std::min(modified_msg->coef_x.size(), max_size); ++i) {
+          optimized_coef_x.push_back(modified_msg->coef_x[i]);
+          optimized_coef_y.push_back(modified_msg->coef_y[i]);
         }
         modified_msg->coef_x = optimized_coef_x;
         modified_msg->coef_y = optimized_coef_y;
@@ -70,7 +63,7 @@ SerialCommNode::SerialCommNode()
         if (!serialized_data.empty())
         {
           jfi_comm_.send(TID_POLY_TRAJ, serialized_data);
-          RCLCPP_INFO(this->get_logger(), "Sent modified trajectory setpoint message via serial.");
+          // RCLCPP_INFO(this->get_logger(), "Sent modified trajectory setpoint message via serial.");
         }
         else
         {
