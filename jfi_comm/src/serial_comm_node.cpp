@@ -35,22 +35,52 @@ SerialCommNode::SerialCommNode()
   const std::string topic_prefix = "/V" + sid;
 
   // Create subscription for outgoing messages.
-  sub_to_serial_poly_traj_ = this->create_subscription<path_manager::msg::PolyTraj>(topic_prefix + "/planning/broadcast_traj_send", qos,
+  sub_to_serial_poly_traj_ = this->create_subscription<path_manager::msg::PolyTraj>(
+      topic_prefix + "/planning/broadcast_traj_send", qos,
       [this](const path_manager::msg::PolyTraj::SharedPtr msg)
       {
-        auto serialized_data = jfi_comm_.serialize_message(msg);
+        auto modified_msg = std::make_shared<path_manager::msg::PolyTraj>(*msg);
+
+        modified_msg->coef_z.clear();
+
+        const float threshold = 1e-10;
+        const int precision = 6;
+        std::vector<float> optimized_coef_x, optimized_coef_y;
+
+        for (const auto &coef : modified_msg->coef_x)
+        {
+          if (std::abs(coef) >= threshold)
+          {
+            float rounded = std::round(coef * std::pow(10, precision)) / std::pow(10, precision);
+            optimized_coef_x.push_back(rounded);
+          }
+        }
+        for (const auto &coef : modified_msg->coef_y)
+        {
+          if (std::abs(coef) >= threshold)
+          {
+            float rounded = std::round(coef * std::pow(10, precision)) / std::pow(10, precision);
+            optimized_coef_y.push_back(rounded);
+          }
+        }
+        modified_msg->coef_x = optimized_coef_x;
+        modified_msg->coef_y = optimized_coef_y;
+
+        auto serialized_data = jfi_comm_.serialize_message(modified_msg);
         if (!serialized_data.empty())
         {
           jfi_comm_.send(TID_POLY_TRAJ, serialized_data);
-          // RCLCPP_INFO(this->get_logger(), "Sent trajectory setpoint message via serial.");
+          RCLCPP_INFO(this->get_logger(), "Sent modified trajectory setpoint message via serial.");
         }
         else
         {
-          RCLCPP_WARN(this->get_logger(), "[SerialCommNode] Failed to serialize trajectory setpoint message for serial transmission.");
+          RCLCPP_WARN(this->get_logger(), "[SerialCommNode] Failed to serialize modified trajectory setpoint message.");
         }
       });
+
   // Create publisher for incoming messages.
-  pub_from_serial_poly_traj_ = this->create_publisher<path_manager::msg::PolyTraj>(topic_prefix + "/j_fi/broadcast_traj_recv", qos);
+  pub_from_serial_poly_traj_ = this->create_publisher<path_manager::msg::PolyTraj>(
+      topic_prefix + "/j_fi/broadcast_traj_recv", qos);
 }
 
 SerialCommNode::~SerialCommNode()
