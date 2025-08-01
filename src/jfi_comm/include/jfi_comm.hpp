@@ -10,7 +10,6 @@
 #include <cstring>
 #include <atomic>
 #include <array>
-
 #include <termios.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -22,13 +21,6 @@
 #include <rclcpp/serialization.hpp>
 
 #include "mavlink/jfi/mavlink.h"
-
-#include "lz4.h"
-
-enum class CompressionType : uint8_t {
-    NONE = 0,
-    LZ4  = 1,
-};
 
 /**
  * @class JFiComm
@@ -54,11 +46,11 @@ public:
   /**
    * @brief Initialize serial communication.
    *
-   * @param recv_cb Callback function to handle received messages.
-   * @param port_name Serial port name (e.g., "/dev/ttyUSB0").
-   * @param baud_rate Baud rate (e.g., 115200).
-   * @param system_id MAVLink system ID.
-   * @param component_id MAVLink component ID.
+   * @param recv_cb       Callback function to handle received messages.
+   * @param port_name     Serial port name (e.g., "/dev/ttyUSB0").
+   * @param baud_rate     Baud rate (e.g., 115200).
+   * @param system_id     Source system ID.
+   * @param component_id  Source component ID.
    * @return true if initialization is successful.
    */
   bool init(
@@ -74,14 +66,13 @@ public:
   /**
    * @brief Encode and send a MAVLink message.
    *
-   * @param tid Message type identifier.
-   * @param data Data to be sent.
+   * @param tid   Message type identifier.
+   * @param data  Data to be sent.
    */
   void send(const uint8_t tid, const std::vector<uint8_t>& data);
 
   /**
    * @brief Continuously read from the serial port and parse MAVLink messages.
-   *        This function is designed to run in a separate thread.
    */
   void recvMavLoop();
 
@@ -167,9 +158,6 @@ private:
 
   // Fixed buffer for receiving data to minimize dynamic allocations.
   std::array<uint8_t, 256> rx_buffer_;
-
-  // Reuse buffer for decompression (minimize memory allocation)
-  std::vector<uint8_t> decompression_buffer_; 
 };
 
 #endif  // JFI_COMM_HPP

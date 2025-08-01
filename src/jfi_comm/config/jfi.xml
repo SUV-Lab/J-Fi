@@ -5,10 +5,8 @@
     <message id="17000" name="JFI">
       <description>J-Fi serial communcation</description>
       <field type="uint8_t" name="tid">topic id</field>
-      <field type="uint8_t" name="compression">Compression algorithm type (0: None, 1: LZ4, etc.)</field>
-      <field type="uint16_t" name="original_size">Size of data before compression. 0 if not compressed.</field>
       <field type="uint8_t" name="len">serialized data length</field>
-      <field type="uint8_t[247]" name="data">serialized data (raw or compressed)</field>
+      <field type="uint8_t[250]" name="data">serialized data</field>
     </message>
   </messages>
 </mavlink>

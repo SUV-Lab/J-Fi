@@ -32,7 +32,6 @@ SerialCommNode::SerialCommNode()
 
   /* -------- 3. ROS Publishers (Serial -> ROS) ------------------------- */
   // Create publishers for messages received FROM the serial port
-  pub_float_array_ = create_publisher<std_msgs::msg::Float64MultiArray>("jfi_comm/in/float_array", 10);
   pub_string_ = create_publisher<std_msgs::msg::String>("jfi_comm/in/string", 10);
 
   /* -------- 4. ROS Subscribers (ROS -> Serial) ------------------------ */
@@ -43,13 +42,6 @@ SerialCommNode::SerialCommNode()
       RCLCPP_INFO(get_logger(), "Received String on topic, sending to serial...");
       auto serialized_data = jfi_comm_.serialize_message(msg);
       jfi_comm_.send(TID_ROS_STRING, serialized_data);
-    });
-  sub_float_array_ = create_subscription<std_msgs::msg::Float64MultiArray>(
-    "jfi_comm/out/float_array", 10,
-    [this](const std_msgs::msg::Float64MultiArray::SharedPtr msg) {
-      RCLCPP_INFO(get_logger(), "Received Float64MultiArray on topic, sending to serial...");
-      auto serialized_data = jfi_comm_.serialize_message(msg);
-      jfi_comm_.send(TID_ROS_FLOATS, serialized_data);
     });
 }
 
@@ -79,23 +71,6 @@ void SerialCommNode::handleMessage(uint8_t tid,
         pub_string_->publish(msg);
       } catch (const std::exception& e) {
         RCLCPP_ERROR(get_logger(), "String deserialization failed: %s", e.what());
-      }
-      break;
-    }
-
-    case TID_ROS_FLOATS: {
-      try {
-        // Deserialize the byte vector back into a ROS message
-        auto msg = jfi_comm_.deserialize_message<std_msgs::msg::Float64MultiArray>(data);
-        RCLCPP_INFO(get_logger(), "  -> Deserialized %zu floats.", msg.data.size());
-        // int index = 0;
-        // for (const auto& value : msg.data) {
-        //   RCLCPP_INFO(get_logger(), "    [%d]: %f", index++, value);
-        // }
-        // Publish the message to a ROS topic
-        pub_float_array_->publish(msg);
-      } catch (const std::exception& e) {
-        RCLCPP_ERROR(get_logger(), "Float64MultiArray deserialization failed: %s", e.what());
       }
       break;
     }

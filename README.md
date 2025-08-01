@@ -20,7 +20,6 @@ jfi_comm/
 │ └── serial_comm_node.launch.py  # Example Launch file for running the node in a real environment.
 ├── mavlink/
 └── src/
-  ├── vendor/                     # LZ4 Compression Algorithm
   ├── jfi_comm.cpp                # Implementation of the JFi Interface.
   ├── serial_comm_node.cpp        # Implementation of the Example ROS2 node using Interface
   └── main.cpp
@@ -29,7 +28,6 @@ jfi_comm/
 ## Features
 
 - **MAVLink Message Handling**: Encodes ROS2 messages into MAVLink messages and decodes received MAVLink messages back into ROS2 messages.
-- **LZ4 Compression**: LZ4 compression algorithms enable data transfer larger than maximum size
 
 ## Prerequisites
 

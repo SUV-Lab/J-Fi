@@ -16,8 +16,7 @@ JFiComm::JFiComm()
   component_id_(1),
   rx_buffer_{}
 {
-  // Pre-assign decompression buffers to the right size
-  decompression_buffer_.reserve(1024 * 512); // 512KB
+
 }
 
 JFiComm::~JFiComm()
@@ -87,38 +86,12 @@ void JFiComm::recvMavLoop()
 
           uint8_t src_sysid = message.sysid;
 
-          // Branch processing based on compression type
-          if (static_cast<CompressionType>(jfi_msg.compression) == CompressionType::LZ4) {
-            // LZ4 decompression
-            if (jfi_msg.original_size > 0) {
-              decompression_buffer_.resize(jfi_msg.original_size);
-              
-              int decompressed_size = LZ4_decompress_safe(
-                  reinterpret_cast<const char*>(jfi_msg.data),
-                  reinterpret_cast<char*>(decompression_buffer_.data()),
-                  jfi_msg.len,
-                  jfi_msg.original_size
-              );
-
-              if (decompressed_size > 0) {
-                std::vector<uint8_t> data(decompression_buffer_.data(), decompression_buffer_.data() + decompressed_size);
-                if (receive_callback_) {
-                  receive_callback_(jfi_msg.tid, src_sysid, data);
-                }
-              } else {
-                RCLCPP_ERROR(rclcpp::get_logger("JFiComm"), "[recvMavLoop] LZ4 decompression failed with code: %d", decompressed_size);
-              }
-            } else {
-               RCLCPP_ERROR(rclcpp::get_logger("JFiComm"), "[recvMavLoop] Received LZ4 compressed message with invalid original_size: 0");
-            }
-          } else {
-            // Uncompressed data processing
-            std::vector<uint8_t> data(jfi_msg.data, jfi_msg.data + jfi_msg.len);
-            if (receive_callback_) {
-              receive_callback_(jfi_msg.tid, src_sysid, data);
-            }
+          std::vector<uint8_t> data(jfi_msg.data, jfi_msg.data + jfi_msg.len);
+          if (receive_callback_) {
+            receive_callback_(jfi_msg.tid, src_sysid, data);
           }
-        } else {
+        }
+        else {
           RCLCPP_WARN(rclcpp::get_logger("JFiComm"), "[recvMavLoop] Unknown message ID: %d", message.msgid);
         }
       }
@@ -214,41 +187,17 @@ void JFiComm::send(const uint8_t tid, const std::vector<uint8_t> & raw_data)
   jfi_msg.tid = tid;
 
   const size_t max_payload_size = MAVLINK_MSG_JFI_FIELD_DATA_LEN;
-
-  if (raw_data.size() <= max_payload_size) {
-    jfi_msg.compression = static_cast<uint8_t>(CompressionType::NONE);
-    jfi_msg.original_size = 0;                                // not compressed
-    jfi_msg.len = raw_data.size();
-    std::memset(jfi_msg.data, 0, sizeof(jfi_msg.data));       // clear data buffer
-    std::memcpy(jfi_msg.data, raw_data.data(), jfi_msg.len);  // copy data into message
-  } 
-  else {
-    std::vector<char> compressed_data(LZ4_compressBound(raw_data.size()));
-    
-    const int compressed_size = LZ4_compress_default(
-        reinterpret_cast<const char*>(raw_data.data()),
-        compressed_data.data(),
-        raw_data.size(),
-        compressed_data.size()
-    );
-
-    // If compression is successful and the compressed size fits the payload
-    if (compressed_size > 0 && static_cast<size_t>(compressed_size) <= max_payload_size) {
-      jfi_msg.compression = static_cast<uint8_t>(CompressionType::LZ4);
-      jfi_msg.original_size = raw_data.size();
-      jfi_msg.len = compressed_size;
-      std::memset(jfi_msg.data, 0, sizeof(jfi_msg.data));             // clear data buffer
-      std::memcpy(jfi_msg.data, compressed_data.data(), jfi_msg.len); // copy data into message
-    } 
-    // If it is too large after compression: Abandon transfer after outputting error log
-    else {
-      RCLCPP_ERROR(rclcpp::get_logger("JFiComm"), 
-        "[send] Message tid %d is too large (%zu bytes) even after LZ4 compression (%d bytes). Max payload is %zu. Dropping message.", 
-        tid, raw_data.size(), compressed_size, max_payload_size);
-      return;
-    }
+  if (raw_data.size() > max_payload_size) {
+    RCLCPP_ERROR(rclcpp::get_logger("JFiComm"), 
+      "[send] Message tid %d is too large (%zu bytes). Max payload is %zu. Dropping message.", 
+      tid, raw_data.size(), max_payload_size);
+    return;
   }
-  
+
+  jfi_msg.len = raw_data.size();
+  std::memset(jfi_msg.data, 0, sizeof(jfi_msg.data));       // clear data buffer
+  std::memcpy(jfi_msg.data, raw_data.data(), jfi_msg.len);  // copy data into message
+
   mavlink_msg_jfi_encode(system_id_, component_id_, &mavlink_msg, &jfi_msg);
   
   uint8_t buffer[MAVLINK_MAX_PACKET_LEN];

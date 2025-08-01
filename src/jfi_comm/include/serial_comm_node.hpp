@@ -7,7 +7,6 @@
 
 #include <rclcpp/rclcpp.hpp>
 #include <std_msgs/msg/string.hpp>
-#include <std_msgs/msg/float64_multi_array.hpp>
 
 #include "jfi_comm.hpp"
 
@@ -26,7 +25,6 @@ public:
   enum TID : uint8_t
   {
     TID_ROS_STRING   = 1,
-    TID_ROS_FLOATS   = 2,
   };
 
   SerialCommNode();
@@ -54,11 +52,9 @@ private:
   /* ROS interfaces -------------------------------------------------------- */
   // Publisher for incoming data from another device
   rclcpp::Publisher<std_msgs::msg::String>::SharedPtr pub_string_;
-  rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr pub_float_array_;
 
   // Subscriber for data to be sent to another device
   rclcpp::Subscription<std_msgs::msg::String>::SharedPtr sub_string_;
-  rclcpp::Subscription<std_msgs::msg::Float64MultiArray>::SharedPtr sub_float_array_;
 };
 
 #endif  // SERIAL_COMM_NODE_HPP

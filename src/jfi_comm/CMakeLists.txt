@@ -37,7 +37,6 @@ add_compile_options(-Wno-pedantic -Wno-address-of-packed-member)
 # Build library
 add_library(jfi_comm_lib
   src/jfi_comm.cpp
-  src/vendor/lz4/lz4.c
 )
 add_dependencies(jfi_comm_lib
   mavlink
