@@ -4,6 +4,8 @@ J-Fi is a ROS2 Serial Communication Interface
 
 ![image](https://github.com/user-attachments/assets/089d86cf-dab3-48db-b4c0-dfab6dbb34eb)
 
+## J-Fi ROS2 Bridge using compression method
+
 ## Structure
 
 - **jfi_comm** : ROS2 Serial Communication Interface to use J-Fi module
@@ -75,9 +77,3 @@ ros2 launch jfi_comm serial_comm_node.launch.py
 ```
 ros2 launch jfi_comm serial_comm_node.launch.py port_name:=/dev/ttyUSB1 baud_rate:=115200 system_id:=2 component_id:=2
 ```
-
-## TODO
-
-- fix the bugs (#2)
-- Github Repo 구조 변경
-- 실제 환경에서 사용 시 발생한 문제점들 보완
