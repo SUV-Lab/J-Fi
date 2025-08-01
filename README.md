@@ -7,7 +7,7 @@ J-Fi is a ROS2 Serial Communication Interface
 ## Structure
 
 - **jfi_comm** : ROS2 Serial Communication Interface to use J-Fi module
-- serial_comm_node : **Example** ROS2 Node of using J-Fi Interface
+- serial_comm_node : **Example** ROS2 Node showing its usage
 ```
 jfi_comm/
 ├── config/
@@ -28,6 +28,7 @@ jfi_comm/
 ## Features
 
 - **MAVLink Message Handling**: Encodes ROS2 messages into MAVLink messages and decodes received MAVLink messages back into ROS2 messages.
+- Provides a virtual serial port test environment with socat
 
 ## Prerequisites
 
@@ -45,7 +46,7 @@ git submodule update --init --recursive
 
 ### Build
 ```
-colcon build
+colcon build --symlink-install
 source install/setup.bash
 ```
 
@@ -63,6 +64,11 @@ Use virtual serial ports via socat:
 ```
 ros2 launch  jfi_comm test_simulation.launch.py
 ```
+Follow the example below to see if two-way communication is working properly
+- Open a new terminal and use the ros2 topic pub command to send a test message
+```
+ros2 topic pub --once /jfi_comm/in/string std_msgs/msg/String "{data: 'Hello, World!'}"
+```
 
 ### For real environment,
 Use real serial ports:
@@ -73,9 +79,3 @@ ros2 launch jfi_comm serial_comm_node.launch.py
 ```
 ros2 launch jfi_comm serial_comm_node.launch.py port_name:=/dev/ttyUSB1 baud_rate:=115200 system_id:=2 component_id:=2
 ```
-
-## TODO
-
-- fix the bugs (#2)
-- Github Repo 구조 변경
-- 실제 환경에서 사용 시 발생한 문제점들 보완

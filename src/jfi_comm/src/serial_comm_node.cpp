@@ -32,12 +32,12 @@ SerialCommNode::SerialCommNode()
 
   /* -------- 3. ROS Publishers (Serial -> ROS) ------------------------- */
   // Create publishers for messages received FROM the serial port
-  pub_string_ = create_publisher<std_msgs::msg::String>("jfi_comm/in/string", 10);
+  pub_string_ = create_publisher<std_msgs::msg::String>("jfi_comm/out/string", 10);
 
   /* -------- 4. ROS Subscribers (ROS -> Serial) ------------------------ */
   // Create subscribers for messages send TO the serial port
   sub_string_ = create_subscription<std_msgs::msg::String>(
-    "jfi_comm/out/string", 10,
+    "jfi_comm/in/string", 10,
     [this](const std_msgs::msg::String::SharedPtr msg) {
       RCLCPP_INFO(get_logger(), "Received String on topic, sending to serial...");
       auto serialized_data = jfi_comm_.serialize_message(msg);

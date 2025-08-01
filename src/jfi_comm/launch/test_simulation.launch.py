@@ -30,7 +30,7 @@ def launch_setup(context, *args, **kwargs):
             {"component_id": 1},
         ],
         remappings=[
-            ("jfi_comm/in/string", "node1/received_string"),
+            ("jfi_comm/out/string", "node1/received_string"),
         ],
     )
 
@@ -46,7 +46,7 @@ def launch_setup(context, *args, **kwargs):
             {"component_id": 2},
         ],
         remappings=[
-            ("jfi_comm/in/string", "node2/received_string"),
+            ("jfi_comm/out/string", "node2/received_string"),
         ],
     )
 
