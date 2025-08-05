@@ -152,12 +152,10 @@ private:
   std::function<void(uint8_t, uint8_t, const std::vector<uint8_t>&)> receive_callback_;
   std::atomic<bool> running_;
 
-  // Parameterized MAVLink system and component IDs.
   uint8_t system_id_;
   uint8_t component_id_;
 
-  // Fixed buffer for receiving data to minimize dynamic allocations.
-  std::array<uint8_t, 256> rx_buffer_;
+  std::array<uint8_t, 512> rx_buffer_;
 };
 
 #endif  // JFI_COMM_HPP

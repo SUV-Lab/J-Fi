@@ -21,7 +21,6 @@ JFiComm::JFiComm()
 
 JFiComm::~JFiComm()
 {
-  // Ensure the receiver thread is stopped and resources are released.
   running_ = false;
   if (mav_recv_thread_.joinable()) {
     mav_recv_thread_.join();
@@ -66,7 +65,6 @@ void JFiComm::recvMavLoop()
       local_fd = fd_;
     }
     
-    // Use fixed buffer to avoid dynamic allocation.
     ssize_t n = ::read(local_fd, rx_buffer_.data(), rx_buffer_.size());
     if (n < 0) {
       RCLCPP_ERROR(rclcpp::get_logger("JFiComm"), "[recvMavLoop] read() failed: %s", strerror(errno));
