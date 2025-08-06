@@ -67,7 +67,7 @@ ros2 launch  jfi_comm test_simulation.launch.py
 Follow the example below to see if two-way communication is working properly
 - Open a new terminal and use the ros2 topic pub command to send a test message
 ```
-ros2 topic pub --once /jfi_comm/in/string std_msgs/msg/String "{data: 'Hello, World!'}"
+ros2 topic pub --once /jfi_comm/in/string std_msgs/msg/String "{data: 'Hello, World'}"
 ```
 
 ### For real environment,

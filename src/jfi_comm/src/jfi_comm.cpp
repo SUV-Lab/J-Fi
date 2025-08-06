@@ -49,54 +49,6 @@ bool JFiComm::init(
   return ret;
 }
 
-void JFiComm::recvMavLoop()
-{
-  mavlink_message_t message;
-  mavlink_status_t status;
-  
-  while (running_) {
-    int local_fd;
-    {
-      std::lock_guard<std::mutex> lock(fd_mutex_);
-      if (fd_ < 0) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
-        continue;
-      }
-      local_fd = fd_;
-    }
-    
-    ssize_t n = ::read(local_fd, rx_buffer_.data(), rx_buffer_.size());
-    if (n < 0) {
-      RCLCPP_ERROR(rclcpp::get_logger("JFiComm"), "[recvMavLoop] read() failed: %s", strerror(errno));
-      std::this_thread::sleep_for(std::chrono::milliseconds(10));
-      continue;
-    } else if (n == 0) {
-      std::this_thread::sleep_for(std::chrono::milliseconds(5));
-      continue;
-    }
-    
-    // Process received bytes.
-    for (ssize_t i = 0; i < n; ++i) {
-      if (mavlink_parse_char(MAVLINK_COMM_0, rx_buffer_[i], &message, &status) == 1) {
-        if (message.msgid == MAVLINK_MSG_ID_JFI) {
-          mavlink_jfi_t jfi_msg;
-          mavlink_msg_jfi_decode(&message, &jfi_msg);
-
-          uint8_t src_sysid = message.sysid;
-
-          std::vector<uint8_t> data(jfi_msg.data, jfi_msg.data + jfi_msg.len);
-          if (receive_callback_) {
-            receive_callback_(jfi_msg.tid, src_sysid, data);
-          }
-        }
-        else {
-          RCLCPP_WARN(rclcpp::get_logger("JFiComm"), "[recvMavLoop] Unknown message ID: %d", message.msgid);
-        }
-      }
-    }
-  }
-}
-
 bool JFiComm::openPort(const std::string & port_name, int baud_rate)
 {
   std::lock_guard<std::mutex> lock(fd_mutex_);
@@ -214,5 +166,53 @@ void JFiComm::writeData(const std::vector<uint8_t> & data)
   ssize_t written = ::write(fd_, data.data(), data.size());
   if (written < 0) {
     RCLCPP_ERROR(rclcpp::get_logger("JFiComm"), "[writeData] write() failed: %s", strerror(errno));
+  }
+}
+
+void JFiComm::recvMavLoop()
+{
+  mavlink_message_t message;
+  mavlink_status_t status;
+  
+  while (running_) {
+    int local_fd;
+    {
+      std::lock_guard<std::mutex> lock(fd_mutex_);
+      if (fd_ < 0) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        continue;
+      }
+      local_fd = fd_;
+    }
+    
+    ssize_t n = ::read(local_fd, rx_buffer_.data(), rx_buffer_.size());
+    if (n < 0) {
+      RCLCPP_ERROR(rclcpp::get_logger("JFiComm"), "[recvMavLoop] read() failed: %s", strerror(errno));
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+      continue;
+    } else if (n == 0) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(5));
+      continue;
+    }
+    
+    // Process received bytes.
+    for (ssize_t i = 0; i < n; ++i) {
+      if (mavlink_parse_char(MAVLINK_COMM_0, rx_buffer_[i], &message, &status) == 1) {
+        if (message.msgid == MAVLINK_MSG_ID_JFI) {
+          mavlink_jfi_t jfi_msg;
+          mavlink_msg_jfi_decode(&message, &jfi_msg);
+
+          uint8_t src_sysid = message.sysid;
+
+          std::vector<uint8_t> data(jfi_msg.data, jfi_msg.data + jfi_msg.len);
+          if (receive_callback_) {
+            receive_callback_(jfi_msg.tid, src_sysid, data);
+          }
+        }
+        else {
+          RCLCPP_WARN(rclcpp::get_logger("JFiComm"), "[recvMavLoop] Unknown message ID: %d", message.msgid);
+        }
+      }
+    }
   }
 }
