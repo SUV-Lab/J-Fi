@@ -79,3 +79,19 @@ ros2 launch jfi_comm serial_comm_node.launch.py
 ```
 ros2 launch jfi_comm serial_comm_node.launch.py port_name:=/dev/ttyUSB1 baud_rate:=115200 system_id:=2 component_id:=2
 ```
+
+### WireShark 패킷 분석
+Wireshark Lua 스크립트 생성
+```
+cd <path_to_mavlink>
+python3 -m pymavlink.tools.mavgen --lang=WLua --wire-protocol=2.0 --output=jfi.lua /home/user/J-Fi/src/jfi_comm/config/jfi.xml
+```
+- 생성한 lua 파일을 Wireshark가 인식가능한 플러그인 폴더(ex: ~/.config/wireshark/plugins)로 이동
+- wireshark를 이용해 패킷 분석
+
+시리얼 포트로 통신이 이루어지는 경우 MAVProxy를 이용한 시리얼-UDP 브릿징 과정 필요
+- 예시
+```
+pip3 install mavproxy
+mavproxy.py --master=/dev/ttyUSB0 --baudrate=115200 --out=udp:127.0.0.1:14550
+```
