@@ -6,8 +6,8 @@ J-Fi is a ROS2 Serial Communication Interface
 
 ## Structure
 
-- **jfi_comm** : ROS2 Serial Communication Interface to use J-Fi module
-- serial_comm_node : **Example** ROS2 Node showing its usage
+- jfi_comm : ROS2 Serial Communication Interface to use J-Fi module
+- serial_comm_node : Example ROS2 Node showing its usage
 ```
 jfi_comm/
 ├── config/
@@ -27,8 +27,9 @@ jfi_comm/
 
 ## Features
 
-- **MAVLink Message Handling**: Encodes ROS2 messages into MAVLink messages and decodes received MAVLink messages back into ROS2 messages.
-- Provides a virtual serial port test environment with socat
+- **MAVLink Message Handling**: Seamlessly encodes ROS2 messages into MAVLink packets and decodes them back on reception
+- **Automatic Packet Fragmentation**: Reliably transmits large data by automatically handling packet fragmentation and reassembly
+- **Virtual Serial Port Testing**: Includes a test environment using `socat` to simulate serial communication without physical hardware
 
 ## Prerequisites
 
@@ -54,18 +55,18 @@ source install/setup.bash
 
 ### Parameters
 
-- port_name: Serial port device path (default: /dev/ttyUSB0).
-- baud_rate: Baud rate for serial communication (default: 115200).
-- system_id: MAVLink system ID (default: 1).
-- component_id: MAVLink component ID (default: 1).
+- `port_name`: Serial port device path (default: /dev/ttyUSB0).
+- `baud_rate`: Baud rate for serial communication (default: 115200).
+- `system_id`: MAVLink system ID (default: 1).
+- `component_id`: MAVLink component ID (default: 1).
 
 ### For simulation test,
-Use virtual serial ports via socat:
+Use virtual serial ports via `socat`:
 ```
 ros2 launch  jfi_comm test_simulation.launch.py
 ```
 Follow the example below to see if two-way communication is working properly
-- Open a new terminal and use the ros2 topic pub command to send a test message
+- Open a new terminal and use the `ros2 topic pub` command to send a test message
 ```
 ros2 topic pub --once /jfi_comm/in/string std_msgs/msg/String "{data: 'Hello, World'}"
 ```
@@ -80,7 +81,7 @@ ros2 launch jfi_comm serial_comm_node.launch.py
 ros2 launch jfi_comm serial_comm_node.launch.py port_name:=/dev/ttyUSB1 baud_rate:=115200 system_id:=2 component_id:=2
 ```
 
-### WireShark 패킷 분석
+## WireShark 패킷 분석
 Wireshark Lua 스크립트 생성
 ```
 cd <path_to_mavlink>
