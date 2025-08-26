@@ -15,12 +15,39 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <map>
+#include <chrono>
 
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp/serialized_message.hpp>
 #include <rclcpp/serialization.hpp>
 
 #include "mavlink/jfi/mavlink.h"
+
+#pragma pack(push, 1)
+struct JfiFragmentHeader
+{
+  uint16_t transaction_id;  // ID for this sequence of fragments
+  uint8_t original_tid;     // TID of the final reassembled message
+  uint8_t fragment_count;   // Total number of fragments
+  uint8_t fragment_seq;     // Sequence number of this fragment (0-indexed)
+};
+#pragma pack(pop)
+
+struct ReassemblyBuffer
+{
+  uint8_t original_tid;
+  uint8_t fragment_count;
+  size_t total_size = 0;
+  std::vector<std::vector<uint8_t>> chunks;
+  std::chrono::steady_clock::time_point last_update;
+
+  ReassemblyBuffer(uint8_t tid, uint8_t count)
+    : original_tid(tid), fragment_count(count), chunks(count)
+  {
+      last_update = std::chrono::steady_clock::now();
+  }
+};
 
 /**
  * @class JFiComm
@@ -145,17 +172,45 @@ private:
    */
   void writeData(const std::vector<uint8_t> & data);
 
+  /**
+   * @brief Encodes and sends a single MAVLink packet.
+   *
+   * @param tid Message type identifier for the packet.
+   * @param payload The data to be placed inside the MAVLink message payload.
+   */
+  void send_packet(uint8_t tid, const std::vector<uint8_t>& payload);
+
+  /**
+   * @brief Processes a received data fragment for reassembly.
+   * Stores the fragment and, if all fragments have arrived, reassembles
+   * the original message and triggers the user callback.
+   *
+   * @param src_sysid The system ID of the message sender.
+   * @param raw_payload The received payload containing the fragment header and data.
+   */
+  void process_fragment(uint8_t src_sysid, const std::vector<uint8_t>& raw_payload);
+
+  /**
+   * @brief Cleans up incomplete reassembly buffers that have not received
+   */
+  void cleanup_stale_fragments();
+
 private:
   int fd_;
   std::thread mav_recv_thread_;
   std::mutex fd_mutex_;
+  std::mutex reassembly_mutex_;
   std::function<void(uint8_t, uint8_t, const std::vector<uint8_t>&)> receive_callback_;
   std::atomic<bool> running_;
 
   uint8_t system_id_;
   uint8_t component_id_;
-
+  
   std::array<uint8_t, 512> rx_buffer_;
+
+  static constexpr uint8_t FRAGMENT_TID = 255;
+  std::atomic<uint16_t> next_transaction_id_{0};
+  std::map<uint16_t, ReassemblyBuffer> reassembly_buffers_;
 };
 
 #endif  // JFI_COMM_HPP
