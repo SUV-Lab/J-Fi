@@ -8,6 +8,7 @@
 #include <chrono>
 #include <thread>
 #include <vector>
+#include <cmath>
 
 JFiComm::JFiComm()
 : fd_(-1),
@@ -21,7 +22,6 @@ JFiComm::JFiComm()
 
 JFiComm::~JFiComm()
 {
-  // Ensure the receiver thread is stopped and resources are released.
   running_ = false;
   if (mav_recv_thread_.joinable()) {
     mav_recv_thread_.join();
@@ -48,55 +48,6 @@ bool JFiComm::init(
   }
   
   return ret;
-}
-
-void JFiComm::recvMavLoop()
-{
-  mavlink_message_t message;
-  mavlink_status_t status;
-  
-  while (running_) {
-    int local_fd;
-    {
-      std::lock_guard<std::mutex> lock(fd_mutex_);
-      if (fd_ < 0) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
-        continue;
-      }
-      local_fd = fd_;
-    }
-    
-    // Use fixed buffer to avoid dynamic allocation.
-    ssize_t n = ::read(local_fd, rx_buffer_.data(), rx_buffer_.size());
-    if (n < 0) {
-      RCLCPP_ERROR(rclcpp::get_logger("JFiComm"), "[recvMavLoop] read() failed: %s", strerror(errno));
-      std::this_thread::sleep_for(std::chrono::milliseconds(10));
-      continue;
-    } else if (n == 0) {
-      std::this_thread::sleep_for(std::chrono::milliseconds(5));
-      continue;
-    }
-    
-    // Process received bytes.
-    for (ssize_t i = 0; i < n; ++i) {
-      if (mavlink_parse_char(MAVLINK_COMM_0, rx_buffer_[i], &message, &status) == 1) {
-        if (message.msgid == MAVLINK_MSG_ID_JFI) {
-          mavlink_jfi_t jfi_msg;
-          mavlink_msg_jfi_decode(&message, &jfi_msg);
-
-          uint8_t src_sysid = message.sysid;
-
-          std::vector<uint8_t> data(jfi_msg.data, jfi_msg.data + jfi_msg.len);
-          if (receive_callback_) {
-            receive_callback_(jfi_msg.tid, src_sysid, data);
-          }
-        }
-        else {
-          RCLCPP_WARN(rclcpp::get_logger("JFiComm"), "[recvMavLoop] Unknown message ID: %d", message.msgid);
-        }
-      }
-    }
-  }
 }
 
 bool JFiComm::openPort(const std::string & port_name, int baud_rate)
@@ -180,28 +131,71 @@ void JFiComm::closePort()
   }
 }
 
-void JFiComm::send(const uint8_t tid, const std::vector<uint8_t> & raw_data)
+void JFiComm::send(const uint8_t tid, const std::vector<uint8_t>& raw_data)
+{
+  const size_t max_payload_size = MAVLINK_MSG_JFI_FIELD_DATA_LEN;
+
+  if (raw_data.size() <= max_payload_size) {
+    send_packet(tid, raw_data);
+  } else {
+    const size_t header_size = sizeof(JfiFragmentHeader);
+    const size_t max_chunk_size = max_payload_size - header_size;
+    
+    if (max_chunk_size <= 0) {
+        RCLCPP_ERROR(rclcpp::get_logger("JFiComm"), "[send] Max payload size is too small for fragmentation header. Dropping.");
+        return;
+    }
+
+    const uint8_t fragment_count = static_cast<uint8_t>(std::ceil(static_cast<double>(raw_data.size()) / max_chunk_size));
+    const uint16_t transaction_id = next_transaction_id_++;
+
+    RCLCPP_INFO(rclcpp::get_logger("JFiComm"), 
+        "[send] Fragmenting tid %d (%zu bytes) into %d chunks. Transaction ID: %u", 
+        tid, raw_data.size(), fragment_count, transaction_id);
+
+    for (uint8_t i = 0; i < fragment_count; ++i) {
+        JfiFragmentHeader header;
+        header.transaction_id = transaction_id;
+        header.original_tid = tid;
+        header.fragment_count = fragment_count;
+        header.fragment_seq = i;
+
+        size_t offset = i * max_chunk_size;
+        size_t chunk_size = std::min(max_chunk_size, raw_data.size() - offset);
+
+        std::vector<uint8_t> payload;
+        payload.resize(header_size + chunk_size);
+
+        std::memcpy(payload.data(), &header, header_size);
+        std::memcpy(payload.data() + header_size, raw_data.data() + offset, chunk_size);
+        
+        send_packet(FRAGMENT_TID, payload);
+        
+        std::this_thread::sleep_for(std::chrono::milliseconds(2));
+    }
+  }
+}
+
+void JFiComm::send_packet(const uint8_t tid, const std::vector<uint8_t>& payload)
 {
   mavlink_message_t mavlink_msg;
   mavlink_jfi_t jfi_msg;
   jfi_msg.tid = tid;
 
-  const size_t max_payload_size = MAVLINK_MSG_JFI_FIELD_DATA_LEN;
-  if (raw_data.size() > max_payload_size) {
+  if (payload.size() > MAVLINK_MSG_JFI_FIELD_DATA_LEN) {
     RCLCPP_ERROR(rclcpp::get_logger("JFiComm"), 
-      "[send] Message tid %d is too large (%zu bytes). Max payload is %zu. Dropping message.", 
-      tid, raw_data.size(), max_payload_size);
+      "[send_packet] Payload for tid %d is too large (%zu bytes). Max is %d. Dropping.", 
+      tid, payload.size(), MAVLINK_MSG_JFI_FIELD_DATA_LEN);
     return;
   }
-
-  jfi_msg.len = raw_data.size();
-  std::memset(jfi_msg.data, 0, sizeof(jfi_msg.data));       // clear data buffer
-  std::memcpy(jfi_msg.data, raw_data.data(), jfi_msg.len);  // copy data into message
+  
+  jfi_msg.len = payload.size();
+  std::memset(jfi_msg.data, 0, sizeof(jfi_msg.data));
+  std::memcpy(jfi_msg.data, payload.data(), jfi_msg.len);
 
   mavlink_msg_jfi_encode(system_id_, component_id_, &mavlink_msg, &jfi_msg);
   
   uint8_t buffer[MAVLINK_MAX_PACKET_LEN];
-  memset(buffer, 0, sizeof(buffer));
   size_t len = mavlink_msg_to_send_buffer(buffer, &mavlink_msg);
   
   writeData(std::vector<uint8_t>(buffer, buffer + len));
@@ -217,4 +211,154 @@ void JFiComm::writeData(const std::vector<uint8_t> & data)
   if (written < 0) {
     RCLCPP_ERROR(rclcpp::get_logger("JFiComm"), "[writeData] write() failed: %s", strerror(errno));
   }
+}
+
+void JFiComm::recvMavLoop()
+{
+  mavlink_message_t message;
+  mavlink_status_t status;
+
+  auto last_cleanup_time = std::chrono::steady_clock::now();
+  
+  while (running_) {
+    int local_fd;
+    {
+      std::lock_guard<std::mutex> lock(fd_mutex_);
+      if (fd_ < 0) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        continue;
+      }
+      local_fd = fd_;
+    }
+    
+    auto now = std::chrono::steady_clock::now();
+    if (std::chrono::duration_cast<std::chrono::seconds>(now - last_cleanup_time).count() > 5) {
+        cleanup_stale_fragments();
+        last_cleanup_time = now;
+    }
+
+    ssize_t n = ::read(local_fd, rx_buffer_.data(), rx_buffer_.size());
+    if (n < 0) {
+      if (errno != EAGAIN && errno != EWOULDBLOCK) {
+      RCLCPP_ERROR(rclcpp::get_logger("JFiComm"), "[recvMavLoop] read() failed: %s", strerror(errno));
+      }
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+      continue;
+    } else if (n == 0) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+      continue;
+    }
+    
+    // Process received bytes.
+    for (ssize_t i = 0; i < n; ++i) {
+      if (mavlink_parse_char(MAVLINK_COMM_0, rx_buffer_[i], &message, &status) == 1) {
+        if (message.msgid == MAVLINK_MSG_ID_JFI) {
+          mavlink_jfi_t jfi_msg;
+          mavlink_msg_jfi_decode(&message, &jfi_msg);
+
+          std::vector<uint8_t> data(jfi_msg.data, jfi_msg.data + jfi_msg.len);
+          uint8_t src_sysid = message.sysid;
+
+          if (jfi_msg.tid == FRAGMENT_TID) {
+            process_fragment(src_sysid, data);
+          } else {
+            if (receive_callback_) {
+              receive_callback_(jfi_msg.tid, src_sysid, data);
+            }
+          }
+        }
+        else {
+          RCLCPP_WARN(rclcpp::get_logger("JFiComm"), "[recvMavLoop] Unknown message ID: %d", message.msgid);
+        }
+      }
+    }
+  }
+}
+
+void JFiComm::process_fragment(uint8_t src_sysid, const std::vector<uint8_t>& raw_payload)
+{
+    if (raw_payload.size() < sizeof(JfiFragmentHeader)) {
+        RCLCPP_WARN(rclcpp::get_logger("JFiComm"), "[process_fragment] Fragment packet is too small. Dropping.");
+        return;
+    }
+
+    JfiFragmentHeader header;
+    std::memcpy(&header, raw_payload.data(), sizeof(JfiFragmentHeader));
+
+    std::lock_guard<std::mutex> lock(reassembly_mutex_);
+
+    auto it = reassembly_buffers_.find(header.transaction_id);
+    if (it == reassembly_buffers_.end()) {
+        // First fragment for this transaction
+        RCLCPP_INFO(rclcpp::get_logger("JFiComm"),
+            "[process_fragment] New transaction %u. Expecting %d fragments for tid %d.",
+            header.transaction_id, header.fragment_count, header.original_tid);
+        reassembly_buffers_.emplace(header.transaction_id, ReassemblyBuffer(header.original_tid, header.fragment_count));
+        it = reassembly_buffers_.find(header.transaction_id);
+    }
+    
+    auto& buffer = it->second;
+
+    // Check for inconsistencies
+    if (buffer.original_tid != header.original_tid || buffer.fragment_count != header.fragment_count) {
+        RCLCPP_WARN(rclcpp::get_logger("JFiComm"), "[process_fragment] Fragment inconsistency for transaction %u. Dropping.", header.transaction_id);
+        reassembly_buffers_.erase(it);
+        return;
+    }
+
+    if (header.fragment_seq < buffer.fragment_count && buffer.chunks[header.fragment_seq].empty()) {
+        // Store the data part of the payload
+        const size_t header_size = sizeof(JfiFragmentHeader);
+        buffer.chunks[header.fragment_seq].assign(
+            raw_payload.begin() + header_size,
+            raw_payload.end()
+        );
+        buffer.total_size += buffer.chunks[header.fragment_seq].size();
+        buffer.last_update = std::chrono::steady_clock::now();
+    } else {
+        RCLCPP_WARN(rclcpp::get_logger("JFiComm"), "[process_fragment] Duplicate or invalid fragment sequence %d for transaction %u.", header.fragment_seq, header.transaction_id);
+        return; // Ignore duplicate fragments
+    }
+
+    // Check if all fragments have arrived
+    size_t received_count = 0;
+    for(const auto& chunk : buffer.chunks) {
+        if (!chunk.empty()) {
+            received_count++;
+        }
+    }
+
+    RCLCPP_DEBUG(rclcpp::get_logger("JFiComm"), "[process_fragment] Received fragment %zu/%d for transaction %u.", received_count, buffer.fragment_count, header.transaction_id);
+
+    if (received_count == buffer.fragment_count) {
+        RCLCPP_INFO(rclcpp::get_logger("JFiComm"), "[process_fragment] Reassembly complete for transaction %u.", header.transaction_id);
+        
+        std::vector<uint8_t> reassembled_data;
+        reassembled_data.reserve(buffer.total_size);
+        for(const auto& chunk : buffer.chunks) {
+            reassembled_data.insert(reassembled_data.end(), chunk.begin(), chunk.end());
+        }
+
+        if (receive_callback_) {
+            receive_callback_(buffer.original_tid, src_sysid, reassembled_data);
+        }
+        
+        reassembly_buffers_.erase(it);
+    }
+}
+
+void JFiComm::cleanup_stale_fragments()
+{
+    std::lock_guard<std::mutex> lock(reassembly_mutex_);
+    if (reassembly_buffers_.empty()) return;
+
+    auto now = std::chrono::steady_clock::now();
+    for (auto it = reassembly_buffers_.begin(); it != reassembly_buffers_.end(); ) {
+        if (std::chrono::duration_cast<std::chrono::seconds>(now - it->second.last_update).count() > 10) {
+            RCLCPP_WARN(rclcpp::get_logger("JFiComm"), "[cleanup] Timing out incomplete transaction %u.", it->first);
+            it = reassembly_buffers_.erase(it);
+        } else {
+            ++it;
+        }
+    }
 }

@@ -6,7 +6,7 @@
       <description>J-Fi serial communcation</description>
       <field type="uint8_t" name="tid">topic id</field>
       <field type="uint8_t" name="len">serialized data length</field>
-      <field type="uint8_t[250]" name="data">serialized data</field>
+      <field type="uint8_t[253]" name="data">serialized data</field>
     </message>
   </messages>
 </mavlink>
