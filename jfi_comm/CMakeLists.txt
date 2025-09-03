@@ -1,6 +1,10 @@
 cmake_minimum_required(VERSION 3.8)
 project(jfi_comm)
 
+if(NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE "Release")
+endif()
+
 configure_file(
   ${CMAKE_SOURCE_DIR}/config/jfi.xml
   ${CMAKE_SOURCE_DIR}/mavlink/message_definitions/v1.0/jfi.xml
