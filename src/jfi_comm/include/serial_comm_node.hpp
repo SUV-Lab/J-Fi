@@ -7,6 +7,7 @@
 
 #include <rclcpp/rclcpp.hpp>
 #include <std_msgs/msg/string.hpp>
+#include <trajectory_msgs/msg/multi_dof_joint_trajectory.hpp>
 
 #include "jfi_comm.hpp"
 
@@ -25,6 +26,7 @@ public:
   enum TID : uint8_t
   {
     TID_ROS_STRING   = 1,
+    TID_TRAJECTORY   = 2,
   };
 
   SerialCommNode();
@@ -52,9 +54,11 @@ private:
   /* ROS interfaces -------------------------------------------------------- */
   // Publisher for incoming data from another device
   rclcpp::Publisher<std_msgs::msg::String>::SharedPtr pub_string_;
+  rclcpp::Publisher<trajectory_msgs::msg::MultiDOFJointTrajectory>::SharedPtr pub_traj_;
 
   // Subscriber for data to be sent to another device
   rclcpp::Subscription<std_msgs::msg::String>::SharedPtr sub_string_;
+  rclcpp::Subscription<trajectory_msgs::msg::MultiDOFJointTrajectory>::SharedPtr sub_traj_;
 };
 
 #endif  // SERIAL_COMM_NODE_HPP

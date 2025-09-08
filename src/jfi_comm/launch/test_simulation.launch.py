@@ -30,7 +30,12 @@ def launch_setup(context, *args, **kwargs):
             {"component_id": 1},
         ],
         remappings=[
+            # Input Topics
+            ("jfi_comm/in/string", "node1/send_string"),
+            ("jfi_comm/in/trajectory", "node1/send_trajectory"),
+            # Output Topics
             ("jfi_comm/out/string", "node1/received_string"),
+            ("jfi_comm/out/trajectory", "node1/received_trajectory"),
         ],
     )
 
@@ -46,14 +51,27 @@ def launch_setup(context, *args, **kwargs):
             {"component_id": 2},
         ],
         remappings=[
+            # Input Topics
+            ("jfi_comm/in/string", "node2/send_string"),
+            ("jfi_comm/in/trajectory", "node2/send_trajectory"),
+            # Output Topics
             ("jfi_comm/out/string", "node2/received_string"),
+            ("jfi_comm/out/trajectory", "node2/received_trajectory"),
         ],
+    )
+
+    evaluator = Node(
+        package="jfi_comm",
+        executable="evaluator_node",
+        name="evaluator",
+        output="screen",
     )
 
     nodes_to_start = [
         socat_process,
         node1,
         node2,
+        evaluator,
     ]
 
     return nodes_to_start

@@ -133,7 +133,7 @@ void JFiComm::closePort()
 
 void JFiComm::send(const uint8_t tid, const std::vector<uint8_t>& raw_data)
 {
-  const size_t max_payload_size = MAVLINK_MSG_JFI_FIELD_DATA_LEN;
+  const size_t max_payload_size = MAVLINK_MSG_JFI_FIELD_DATA_LEN; // max payload size : 253 bytes
 
   if (raw_data.size() <= max_payload_size) {
     send_packet(tid, raw_data);
@@ -149,9 +149,9 @@ void JFiComm::send(const uint8_t tid, const std::vector<uint8_t>& raw_data)
     const uint8_t fragment_count = static_cast<uint8_t>(std::ceil(static_cast<double>(raw_data.size()) / max_chunk_size));
     const uint16_t transaction_id = next_transaction_id_++;
 
-    RCLCPP_INFO(rclcpp::get_logger("JFiComm"), 
-        "[send] Fragmenting tid %d (%zu bytes) into %d chunks. Transaction ID: %u", 
-        tid, raw_data.size(), fragment_count, transaction_id);
+    // RCLCPP_INFO(rclcpp::get_logger("JFiComm"), 
+    //     "[send] Fragmenting tid %d (%zu bytes) into %d chunks. Transaction ID: %u", 
+    //     tid, raw_data.size(), fragment_count, transaction_id);
 
     for (uint8_t i = 0; i < fragment_count; ++i) {
         JfiFragmentHeader header;
@@ -290,9 +290,9 @@ void JFiComm::process_fragment(uint8_t src_sysid, const std::vector<uint8_t>& ra
     auto it = reassembly_buffers_.find(header.transaction_id);
     if (it == reassembly_buffers_.end()) {
         // First fragment for this transaction
-        RCLCPP_INFO(rclcpp::get_logger("JFiComm"),
-            "[process_fragment] New transaction %u. Expecting %d fragments for tid %d.",
-            header.transaction_id, header.fragment_count, header.original_tid);
+        // RCLCPP_INFO(rclcpp::get_logger("JFiComm"),
+        //     "[process_fragment] New transaction %u. Expecting %d fragments for tid %d.",
+        //     header.transaction_id, header.fragment_count, header.original_tid);
         reassembly_buffers_.emplace(header.transaction_id, ReassemblyBuffer(header.original_tid, header.fragment_count));
         it = reassembly_buffers_.find(header.transaction_id);
     }
@@ -331,7 +331,7 @@ void JFiComm::process_fragment(uint8_t src_sysid, const std::vector<uint8_t>& ra
     RCLCPP_DEBUG(rclcpp::get_logger("JFiComm"), "[process_fragment] Received fragment %zu/%d for transaction %u.", received_count, buffer.fragment_count, header.transaction_id);
 
     if (received_count == buffer.fragment_count) {
-        RCLCPP_INFO(rclcpp::get_logger("JFiComm"), "[process_fragment] Reassembly complete for transaction %u.", header.transaction_id);
+        // RCLCPP_INFO(rclcpp::get_logger("JFiComm"), "[process_fragment] Reassembly complete for transaction %u.", header.transaction_id);
         
         std::vector<uint8_t> reassembled_data;
         reassembled_data.reserve(buffer.total_size);

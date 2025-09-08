@@ -27,6 +27,7 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
+find_package(trajectory_msgs REQUIRED)
 
 # Include headers
 include_directories(include)
@@ -56,6 +57,7 @@ add_library(serial_comm_node_lib
 ament_target_dependencies(serial_comm_node_lib
   rclcpp
   std_msgs
+  trajectory_msgs
 )
 target_link_libraries(serial_comm_node_lib
   jfi_comm_lib
@@ -73,10 +75,19 @@ target_link_libraries(serial_comm_node
   serial_comm_node_lib
 )
 
+add_executable(evaluator_node
+  src/evaluator_node.cpp
+)
+ament_target_dependencies(evaluator_node
+  rclcpp
+  trajectory_msgs
+)
+
 install(TARGETS
   jfi_comm_lib
   serial_comm_node_lib
   serial_comm_node
+  evaluator_node
   DESTINATION lib/${PROJECT_NAME}
 )
 
