@@ -1,6 +1,8 @@
 #include <rclcpp/rclcpp.hpp>
+#include <rclcpp/serialization.hpp>
 #include <trajectory_msgs/msg/multi_dof_joint_trajectory.hpp>
-#include "jfi_comm/msg/swarm_comm.hpp" // 사용자님의 파일 이름 기준
+#include "jfi_comm/msg/swarm_comm.hpp"
+
 #include <map>
 #include <numeric>
 #include <vector>

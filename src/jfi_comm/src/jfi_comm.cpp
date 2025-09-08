@@ -30,7 +30,7 @@ JFiComm::~JFiComm()
 }
 
 bool JFiComm::init(
-  std::function<void(uint8_t, uint8_t, const std::vector<uint8_t>&)> recv_cb,
+  std::function<void(uint8_t seq, uint8_t tid, uint8_t src_sysid, const std::vector<uint8_t>&)> recv_cb,
   const std::string & port_name, int baud_rate,uint8_t system_id, uint8_t component_id
 )
 {
@@ -275,7 +275,7 @@ void JFiComm::recvMavLoop()
   }
 }
 
-void JFiComm::process_fragment(uint8_t src_sysid, const std::vector<uint8_t>& raw_payload)
+void JFiComm::process_fragment(uint8_t seq, uint8_t src_sysid, const std::vector<uint8_t>& raw_payload)
 {
     if (raw_payload.size() < sizeof(JfiFragmentHeader)) {
         RCLCPP_WARN(rclcpp::get_logger("JFiComm"), "[process_fragment] Fragment packet is too small. Dropping.");
