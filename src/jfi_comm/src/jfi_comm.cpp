@@ -260,10 +260,10 @@ void JFiComm::recvMavLoop()
           uint8_t src_sysid = message.sysid;
 
           if (jfi_msg.tid == FRAGMENT_TID) {
-            process_fragment(src_sysid, data);
+            process_fragment(message.seq, src_sysid, data);
           } else {
             if (receive_callback_) {
-              receive_callback_(jfi_msg.tid, src_sysid, data);
+              receive_callback_(message.seq, jfi_msg.tid, src_sysid, data);
             }
           }
         }
@@ -340,7 +340,7 @@ void JFiComm::process_fragment(uint8_t src_sysid, const std::vector<uint8_t>& ra
         }
 
         if (receive_callback_) {
-            receive_callback_(buffer.original_tid, src_sysid, reassembled_data);
+            receive_callback_(seq, buffer.original_tid, src_sysid, reassembled_data);
         }
         
         reassembly_buffers_.erase(it);

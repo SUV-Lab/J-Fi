@@ -1,17 +1,12 @@
 #ifndef SERIAL_COMM_NODE_HPP
 #define SERIAL_COMM_NODE_HPP
 
-#include <chrono>
-#include <string>
 #include <vector>
-
 #include <rclcpp/rclcpp.hpp>
-#include <std_msgs/msg/string.hpp>
-#include <trajectory_msgs/msg/multi_dof_joint_trajectory.hpp>
 
+#include "jfi_comm/msg/swarm_comm.hpp"
 #include "jfi_comm.hpp"
 
-using namespace std::chrono_literals;
 
 /**
  * @class SerialCommNode
@@ -20,15 +15,6 @@ using namespace std::chrono_literals;
 class SerialCommNode : public rclcpp::Node
 {
 public:
-  /**
-   * @brief Defines the unique identifiers for different message types being sent over MAVLink.
-   */
-  enum TID : uint8_t
-  {
-    TID_ROS_STRING   = 1,
-    TID_TRAJECTORY   = 2,
-  };
-
   SerialCommNode();
   ~SerialCommNode();
 
@@ -36,7 +22,7 @@ private:
   /**
    * @brief Callback function that processes all incoming messages from JFiComm.
    */
-  void handleMessage(uint8_t tid,
+  void handleMessage(uint8_t seq, uint8_t tid,
                      uint8_t src_sysid,
                      const std::vector<uint8_t>& data);
 
@@ -52,13 +38,8 @@ private:
   uint8_t component_id_;
 
   /* ROS interfaces -------------------------------------------------------- */
-  // Publisher for incoming data from another device
-  rclcpp::Publisher<std_msgs::msg::String>::SharedPtr pub_string_;
-  rclcpp::Publisher<trajectory_msgs::msg::MultiDOFJointTrajectory>::SharedPtr pub_traj_;
-
-  // Subscriber for data to be sent to another device
-  rclcpp::Subscription<std_msgs::msg::String>::SharedPtr sub_string_;
-  rclcpp::Subscription<trajectory_msgs::msg::MultiDOFJointTrajectory>::SharedPtr sub_traj_;
+  rclcpp::Publisher<jfi_comm::msg::SwarmComm>::SharedPtr pub_packet_;
+  rclcpp::Subscription<jfi_comm::msg::SwarmComm>::SharedPtr sub_packet_;
 };
 
 #endif  // SERIAL_COMM_NODE_HPP

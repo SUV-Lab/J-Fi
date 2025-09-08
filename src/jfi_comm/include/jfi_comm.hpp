@@ -81,7 +81,7 @@ public:
    * @return true if initialization is successful.
    */
   bool init(
-    std::function<void(uint8_t, uint8_t, const std::vector<uint8_t>&)> recv_cb,
+    std::function<void(uint8_t seq, uint8_t tid, uint8_t src_sysid const std::vector<uint8_t>&)> recv_cb,
     const std::string & port_name, int baud_rate, uint8_t system_id = 1, uint8_t component_id = 1
   );
 
@@ -200,7 +200,7 @@ private:
   std::thread mav_recv_thread_;
   std::mutex fd_mutex_;
   std::mutex reassembly_mutex_;
-  std::function<void(uint8_t, uint8_t, const std::vector<uint8_t>&)> receive_callback_;
+  std::function<void(uint8_t, uint8_t, uint8_t, const std::vector<uint8_t>&)> receive_callback_;
   std::atomic<bool> running_;
 
   uint8_t system_id_;
