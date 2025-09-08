@@ -28,12 +28,18 @@ find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(trajectory_msgs REQUIRED)
+find_package(rosidl_default_generators REQUIRED)
 
 # Include headers
 include_directories(include)
 
 # suppress warnings from auto-generated packed MAVLink structs
 add_compile_options(-Wno-pedantic -Wno-address-of-packed-member)
+
+rosidl_generate_interfaces(${PROJECT_NAME}
+  "msg/SwarmComm.msg"
+  DEPENDENCIES std_msgs
+)
 
 # Build library
 add_library(jfi_comm_lib
@@ -58,6 +64,7 @@ ament_target_dependencies(serial_comm_node_lib
   rclcpp
   std_msgs
   trajectory_msgs
+  ${PROJECT_NAME}_rosidl_typesupport_cpp
 )
 target_link_libraries(serial_comm_node_lib
   jfi_comm_lib
@@ -70,6 +77,8 @@ add_executable(serial_comm_node
 ament_target_dependencies(serial_comm_node
   rclcpp
   std_msgs
+  trajectory_msgs
+  ${PROJECT_NAME}_rosidl_typesupport_cpp
 )
 target_link_libraries(serial_comm_node
   serial_comm_node_lib
@@ -81,6 +90,7 @@ add_executable(evaluator_node
 ament_target_dependencies(evaluator_node
   rclcpp
   trajectory_msgs
+  ${PROJECT_NAME}_rosidl_typesupport_cpp
 )
 
 install(TARGETS
