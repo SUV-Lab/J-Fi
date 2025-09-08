@@ -3,16 +3,19 @@ project(jfi_comm)
 
 # Find dependencies
 find_package(ament_cmake REQUIRED)
+find_package(mavlink_vendor REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(trajectory_msgs REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
-find_package(mavlink_vendor REQUIRED)
+
+ament_export_include_directories(${mavlink_vendor_INCLUDE_DIRS})
 
 rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/SwarmComm.msg"
   DEPENDENCIES std_msgs
 )
+rosidl_get_typesupport_target(typesupport_target ${PROJECT_NAME} rosidl_typesupport_cpp)
 
 # Include headers
 include_directories(include)
@@ -33,20 +36,18 @@ target_include_directories(jfi_comm_lib PUBLIC
   $<INSTALL_INTERFACE:include>
   $<BUILD_INTERFACE:${mavlink_vendor_INCLUDE_DIRS}>
   $<INSTALL_INTERFACE:${mavlink_vendor_INCLUDE_DIRS}>
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/vendor>
 )
 
 add_library(serial_comm_node_lib
   src/serial_comm_node.cpp
 )
-add_dependencies(serial_comm_node_lib ${PROJECT_NAME}_rosidl_get_typesupport_targets)
 ament_target_dependencies(serial_comm_node_lib
   rclcpp
   std_msgs
-  ${PROJECT_NAME}_rosidl_typesupport_cpp
 )
 target_link_libraries(serial_comm_node_lib
   jfi_comm_lib
+  ${typesupport_target}
 )
 
 # Build executable
@@ -63,11 +64,12 @@ target_link_libraries(serial_comm_node
 add_executable(evaluator_node
   src/evaluator_node.cpp
 )
-add_dependencies(evaluator_node ${PROJECT_NAME}_rosidl_get_typesupport_targets)
 ament_target_dependencies(evaluator_node
   rclcpp
   trajectory_msgs
-  ${PROJECT_NAME}_rosidl_typesupport_cpp
+)
+target_link_libraries(evaluator_node
+  ${typesupport_target}
 )
 
 # Install
