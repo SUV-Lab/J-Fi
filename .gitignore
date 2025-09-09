@@ -2,3 +2,4 @@
 build/
 install/
 log/
+mavlink_vendor/mavlink/message_definitions/v1.0/jfi.xml
