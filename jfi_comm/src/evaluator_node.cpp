@@ -76,10 +76,16 @@ private:
         trajectory_msgs::msg::MultiDOFJointTrajectoryPoint point;
         point.transforms.resize(1);
         point.transforms[0].translation.x = 1.0 + i;
+        point.velocities.resize(1);
+        point.velocities[0].linear.x = 0.1 * i;
+        point.accelerations.resize(1);
+        point.accelerations[0].linear.x = 0.01 * i;
         traj_msg->points.push_back(point);
     }
 
     auto serialized_data = serializer_.serialize(traj_msg);
+
+    // total_tx_bytes_in_period_ += serialized_data.size();
 
     auto packet = std::make_unique<jfi_comm::msg::SwarmComm>();
     packet->tid = 2; // TID_TRAJECTORY
@@ -119,6 +125,14 @@ private:
   void report_callback()
   {
     RCLCPP_INFO(this->get_logger(), "========== N:N COMMS REPORT (5s Interval) ==========");
+
+    // double avg_tx_size = 0.0;
+    // if (packets_sent_in_period_ > 0) {
+    //     avg_tx_size = static_cast<double>(total_tx_bytes_in_period_) / packets_sent_in_period_;
+    // }
+    // RCLCPP_INFO(this->get_logger(), "TX (Sent): %zu packets (Avg size: %.1f bytes)", 
+    //           packets_sent_in_period_, avg_tx_size);
+
     RCLCPP_INFO(this->get_logger(), "TX (Sent): %zu packets", packets_sent_in_period_);
 
     for (auto const& [peer_id, stats] : peer_statistics_) {
@@ -142,6 +156,7 @@ private:
     RCLCPP_INFO(this->get_logger(), "======================================================");
 
     packets_sent_in_period_ = 0;
+    // total_tx_bytes_in_period_ = 0;
     peer_statistics_.clear();
   }
 
@@ -155,6 +170,7 @@ private:
   uint8_t last_rx_seq_;
   bool last_rx_seq_known_;
   size_t packets_sent_in_period_ = 0;
+  // size_t total_tx_bytes_in_period_ = 0;
 
   std::map<uint8_t, PeerStats> peer_statistics_;
 };
