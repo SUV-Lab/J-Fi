@@ -122,6 +122,7 @@ private:
   void report_callback()
   {
     RCLCPP_INFO(this->get_logger(), "========== N:N COMMS REPORT (5s Interval) ==========");
+    RCLCPP_INFO(this->get_logger(), "TX (Sent): %zu packets", packets_sent_in_period_);
 
     // double avg_tx_size = 0.0;
     // if (packets_sent_in_period_ > 0) {
@@ -129,8 +130,6 @@ private:
     // }
     // RCLCPP_INFO(this->get_logger(), "TX (Sent): %zu packets (Avg size: %.1f bytes)", 
     //           packets_sent_in_period_, avg_tx_size);
-
-    RCLCPP_INFO(this->get_logger(), "TX (Sent): %zu packets", packets_sent_in_period_);
 
     for (auto const& [peer_id, stats] : peer_statistics_) {
       double avg_latency = 0.0, max_latency = 0.0;
@@ -140,12 +139,18 @@ private:
         max_latency = *std::max_element(stats.latency_buffer.begin(), stats.latency_buffer.end());
       }
       
-      size_t total_expected = stats.packets_received_in_period + stats.lost_packets_in_period;
-      double loss_rate = (total_expected > 0) ? (static_cast<double>(stats.lost_packets_in_period) / total_expected * 100.0) : 0.0;
+      const size_t EXPECTED_PACKETS_PER_INTERVAL = 50; 
+      size_t received_count = stats.packets_received_in_period;
+
+      size_t lost_count = (EXPECTED_PACKETS_PER_INTERVAL > received_count) ? 
+                        (EXPECTED_PACKETS_PER_INTERVAL - received_count) : 0;
+
+      double loss_rate = (EXPECTED_PACKETS_PER_INTERVAL > 0) ? 
+                       (static_cast<double>(lost_count) / EXPECTED_PACKETS_PER_INTERVAL * 100.0) : 0.0;
       
       RCLCPP_INFO(this->get_logger(), "--- RX Stats from Peer ID: %u ---", peer_id);
       RCLCPP_INFO(this->get_logger(), "    Received: %zu | Lost: %zu (%.2f%% loss)",
-                  stats.packets_received_in_period, stats.lost_packets_in_period, loss_rate);
+                  received_count, lost_count, loss_rate);
       if (!stats.latency_buffer.empty()) {
         RCLCPP_INFO(this->get_logger(), "    One-way Latency(ms): Avg: %.2f | Max: %.2f", avg_latency, max_latency);
       }
