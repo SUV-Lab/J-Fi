@@ -1,5 +1,5 @@
 std_msgs/Header header
 uint8 src_sysid
-uint8 seq
+uint32 app_seq
 uint8 tid
 uint8[] payload

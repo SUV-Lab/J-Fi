@@ -59,7 +59,7 @@ void SerialCommNode::handleMessage(uint8_t seq, uint8_t tid,
 
   packet_msg->header.stamp = this->get_clock()->now();
   packet_msg->src_sysid = src_sysid;
-  packet_msg->seq = seq;
+  // packet_msg->seq = seq;
   packet_msg->tid = tid;
   packet_msg->payload = data;
 

@@ -10,8 +10,8 @@
 using namespace std::chrono_literals;
 
 struct PeerStats {
-    uint8_t last_rx_seq;
-    bool last_rx_seq_known = false;
+    uint32_t last_rx_app_seq;
+    bool last_rx_app_seq_known = false;
     size_t packets_received_in_period = 0;
     size_t lost_packets_in_period = 0;
     std::vector<double> latency_buffer;
@@ -70,7 +70,7 @@ private:
   {
     auto traj_msg = std::make_shared<trajectory_msgs::msg::MultiDOFJointTrajectory>();
     traj_msg->header.stamp = this->get_clock()->now();
-    traj_msg->header.frame_id = std::to_string(tx_seq_++);
+    // traj_msg->header.frame_id = std::to_string(tx_seq_++);
     traj_msg->joint_names = {"joint1", "joint2"};
     for (int i = 0; i < 2; ++i) {
         trajectory_msgs::msg::MultiDOFJointTrajectoryPoint point;
@@ -84,10 +84,10 @@ private:
     }
 
     auto serialized_data = serializer_.serialize(traj_msg);
-
     // total_tx_bytes_in_period_ += serialized_data.size();
 
     auto packet = std::make_unique<jfi_comm::msg::SwarmComm>();
+    packet->app_seq = tx_seq_++;
     packet->tid = 2; // TID_TRAJECTORY
     packet->payload = serialized_data;
     publisher_->publish(std::move(packet));
@@ -98,19 +98,16 @@ private:
   void packet_callback(const jfi_comm::msg::SwarmComm::SharedPtr msg)
   {
     uint8_t peer_id = msg->src_sysid;
-
     PeerStats& stats = peer_statistics_[peer_id];
     stats.packets_received_in_period++;
 
-    if (stats.last_rx_seq_known) {
-      uint8_t expected_seq = static_cast<uint8_t>(stats.last_rx_seq + 1);
-      if (msg->seq != expected_seq) {
-        uint8_t diff = (msg->seq > stats.last_rx_seq) ? (msg->seq - stats.last_rx_seq - 1) : (255 - stats.last_rx_seq + msg->seq);
-        stats.lost_packets_in_period += diff;
-      }
+    if (stats.last_rx_app_seq_known) {
+      if (msg->app_seq > stats.last_rx_app_seq + 1) {
+            stats.lost_packets_in_period += (msg->app_seq - stats.last_rx_app_seq - 1);
+        }
     }
-    stats.last_rx_seq = msg->seq;
-    stats.last_rx_seq_known = true;
+    stats.last_rx_app_seq = msg->app_seq;
+    stats.last_rx_app_seq_known = true;
 
     try {
       auto traj_msg = serializer_.deserialize(msg->payload);
