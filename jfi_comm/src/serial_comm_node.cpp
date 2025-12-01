@@ -1,9 +1,12 @@
 #include "serial_comm_node.hpp"
 #include <functional>
+#include <algorithm>
+#include <cstring>
 
 SerialCommNode::SerialCommNode()
 : Node("serial_comm_node"),
-  last_sent_formation_cmd_sequence_(-1)
+  last_sent_formation_cmd_sequence_(-1),
+  last_polytraj_send_time_(std::chrono::steady_clock::now())
 {
   // Declare and get parameters.
   this->declare_parameter<std::string>("port_name", "/dev/ttyUSB0");
@@ -76,11 +79,109 @@ SerialCommNode::SerialCommNode()
         remove_trailing_zeros(modified_msg->coef_x);
         remove_trailing_zeros(modified_msg->coef_y);
 
-        auto serialized_data = jfi_comm_.serialize_message(modified_msg);
+        // ===== Quantization Compression =====
+        // Convert float32 arrays to uint8 with min/max metadata for 75% size reduction
+
+        auto quantize_array = [](const std::vector<float>& input, std::vector<uint8_t>& output, float& min_val, float& max_val) {
+            if (input.empty()) {
+                min_val = 0.0f;
+                max_val = 0.0f;
+                return;
+            }
+
+            min_val = *std::min_element(input.begin(), input.end());
+            max_val = *std::max_element(input.begin(), input.end());
+
+            output.resize(input.size());
+            float range = max_val - min_val;
+
+            if (range < 1e-9f) {
+                // All values are the same
+                std::fill(output.begin(), output.end(), 0);
+            } else {
+                for (size_t i = 0; i < input.size(); ++i) {
+                    float normalized = (input[i] - min_val) / range;
+                    output[i] = static_cast<uint8_t>(std::clamp(normalized * 255.0f, 0.0f, 255.0f));
+                }
+            }
+        };
+
+        std::vector<uint8_t> coef_x_quantized, coef_y_quantized, duration_quantized;
+        float coef_x_min, coef_x_max, coef_y_min, coef_y_max, duration_min, duration_max;
+
+        quantize_array(modified_msg->coef_x, coef_x_quantized, coef_x_min, coef_x_max);
+        quantize_array(modified_msg->coef_y, coef_y_quantized, coef_y_min, coef_y_max);
+        quantize_array(modified_msg->duration, duration_quantized, duration_min, duration_max);
+
+        // Pack compressed data into byte array
+        // Format: [header(14)] [coef_x_quantized] [coef_y_quantized] [duration_quantized]
+        // Header: drone_id(2) traj_id(4) start_time(8) order(1)
+        //         coef_x: size(2) min(4) max(4)
+        //         coef_y: size(2) min(4) max(4)
+        //         duration: size(2) min(4) max(4)
+
+        size_t header_size = 2 + 4 + 8 + 1 + (2+4+4)*3;  // 45 bytes
+        size_t total_size = header_size + coef_x_quantized.size() + coef_y_quantized.size() + duration_quantized.size();
+
+        std::vector<uint8_t> serialized_data(total_size);
+        size_t offset = 0;
+
+        // drone_id (int16)
+        *reinterpret_cast<int16_t*>(&serialized_data[offset]) = modified_msg->drone_id;
+        offset += 2;
+
+        // traj_id (int32)
+        *reinterpret_cast<int32_t*>(&serialized_data[offset]) = modified_msg->traj_id;
+        offset += 4;
+
+        // start_time (2x int32 = sec + nanosec)
+        *reinterpret_cast<int32_t*>(&serialized_data[offset]) = modified_msg->start_time.sec;
+        offset += 4;
+        *reinterpret_cast<uint32_t*>(&serialized_data[offset]) = modified_msg->start_time.nanosec;
+        offset += 4;
+
+        // order (uint8)
+        serialized_data[offset++] = modified_msg->order;
+
+        // coef_x metadata
+        *reinterpret_cast<uint16_t*>(&serialized_data[offset]) = static_cast<uint16_t>(coef_x_quantized.size());
+        offset += 2;
+        *reinterpret_cast<float*>(&serialized_data[offset]) = coef_x_min;
+        offset += 4;
+        *reinterpret_cast<float*>(&serialized_data[offset]) = coef_x_max;
+        offset += 4;
+
+        // coef_y metadata
+        *reinterpret_cast<uint16_t*>(&serialized_data[offset]) = static_cast<uint16_t>(coef_y_quantized.size());
+        offset += 2;
+        *reinterpret_cast<float*>(&serialized_data[offset]) = coef_y_min;
+        offset += 4;
+        *reinterpret_cast<float*>(&serialized_data[offset]) = coef_y_max;
+        offset += 4;
+
+        // duration metadata
+        *reinterpret_cast<uint16_t*>(&serialized_data[offset]) = static_cast<uint16_t>(duration_quantized.size());
+        offset += 2;
+        *reinterpret_cast<float*>(&serialized_data[offset]) = duration_min;
+        offset += 4;
+        *reinterpret_cast<float*>(&serialized_data[offset]) = duration_max;
+        offset += 4;
+
+        // Copy quantized data
+        std::memcpy(&serialized_data[offset], coef_x_quantized.data(), coef_x_quantized.size());
+        offset += coef_x_quantized.size();
+        std::memcpy(&serialized_data[offset], coef_y_quantized.data(), coef_y_quantized.size());
+        offset += coef_y_quantized.size();
+        std::memcpy(&serialized_data[offset], duration_quantized.data(), duration_quantized.size());
+
+        // ===== End Quantization Compression =====
         if (!serialized_data.empty())
         {
           jfi_comm_.send(TID_POLY_TRAJ, serialized_data);
-          // RCLCPP_INFO(this->get_logger(), "Sent modified trajectory setpoint message via serial.");
+          RCLCPP_INFO(this->get_logger(), "Sent PolyTraj: drone_id=%d, order=%d, coef_x=%zu, coef_y=%zu, duration=%zu, size=%zu bytes",
+                      modified_msg->drone_id, modified_msg->order,
+                      modified_msg->coef_x.size(), modified_msg->coef_y.size(), modified_msg->duration.size(),
+                      serialized_data.size());
         }
         else
         {
@@ -144,7 +245,82 @@ void SerialCommNode::handleMessage(const int tid, const std::vector<uint8_t> & d
     case TID_POLY_TRAJ:
     {
       try {
-        path_manager::msg::PolyTraj polytraj_msg = jfi_comm_.deserialize_message<path_manager::msg::PolyTraj>(data);
+        // ===== Quantization Decompression =====
+        // Decompress uint8 quantized data back to float32 arrays
+
+        if (data.size() < 45) {
+          RCLCPP_ERROR(this->get_logger(), "Received PolyTraj data too small: %zu bytes", data.size());
+          break;
+        }
+
+        path_manager::msg::PolyTraj polytraj_msg;
+        size_t offset = 0;
+
+        // Parse header
+        polytraj_msg.drone_id = *reinterpret_cast<const int16_t*>(&data[offset]);
+        offset += 2;
+
+        polytraj_msg.traj_id = *reinterpret_cast<const int32_t*>(&data[offset]);
+        offset += 4;
+
+        polytraj_msg.start_time.sec = *reinterpret_cast<const int32_t*>(&data[offset]);
+        offset += 4;
+        polytraj_msg.start_time.nanosec = *reinterpret_cast<const uint32_t*>(&data[offset]);
+        offset += 4;
+
+        polytraj_msg.order = data[offset++];
+
+        // Parse coef_x metadata
+        uint16_t coef_x_size = *reinterpret_cast<const uint16_t*>(&data[offset]);
+        offset += 2;
+        float coef_x_min = *reinterpret_cast<const float*>(&data[offset]);
+        offset += 4;
+        float coef_x_max = *reinterpret_cast<const float*>(&data[offset]);
+        offset += 4;
+
+        // Parse coef_y metadata
+        uint16_t coef_y_size = *reinterpret_cast<const uint16_t*>(&data[offset]);
+        offset += 2;
+        float coef_y_min = *reinterpret_cast<const float*>(&data[offset]);
+        offset += 4;
+        float coef_y_max = *reinterpret_cast<const float*>(&data[offset]);
+        offset += 4;
+
+        // Parse duration metadata
+        uint16_t duration_size = *reinterpret_cast<const uint16_t*>(&data[offset]);
+        offset += 2;
+        float duration_min = *reinterpret_cast<const float*>(&data[offset]);
+        offset += 4;
+        float duration_max = *reinterpret_cast<const float*>(&data[offset]);
+        offset += 4;
+
+        // Dequantize arrays
+        auto dequantize_array = [](const uint8_t* quantized, size_t size, float min_val, float max_val, std::vector<float>& output) {
+            output.resize(size);
+            float range = max_val - min_val;
+
+            if (range < 1e-9f) {
+                std::fill(output.begin(), output.end(), min_val);
+            } else {
+                for (size_t i = 0; i < size; ++i) {
+                    float normalized = quantized[i] / 255.0f;
+                    output[i] = min_val + normalized * range;
+                }
+            }
+        };
+
+        dequantize_array(&data[offset], coef_x_size, coef_x_min, coef_x_max, polytraj_msg.coef_x);
+        offset += coef_x_size;
+
+        dequantize_array(&data[offset], coef_y_size, coef_y_min, coef_y_max, polytraj_msg.coef_y);
+        offset += coef_y_size;
+
+        dequantize_array(&data[offset], duration_size, duration_min, duration_max, polytraj_msg.duration);
+
+        RCLCPP_INFO(this->get_logger(), "Received PolyTraj (quantized): drone_id=%d, coef_x=%zu, coef_y=%zu, duration=%zu, compressed_size=%zu bytes",
+                    polytraj_msg.drone_id, polytraj_msg.coef_x.size(), polytraj_msg.coef_y.size(), polytraj_msg.duration.size(), data.size());
+
+        // ===== End Quantization Decompression =====
         if (polytraj_msg.coef_x.size() != polytraj_msg.coef_y.size()) {
           RCLCPP_WARN(this->get_logger(), "coef_x size (%zu) differs from coef_y size (%zu), using coef_x size",
                       polytraj_msg.coef_x.size(), polytraj_msg.coef_y.size());

@@ -57,6 +57,10 @@ private:
 
   // Sequence tracking to prevent duplicate transmissions
   int last_sent_formation_cmd_sequence_;
+
+  // Throttling for PolyTraj transmission
+  std::chrono::steady_clock::time_point last_polytraj_send_time_;
+  static constexpr double POLYTRAJ_MIN_INTERVAL_SEC = 0.3;  // Minimum 0.3s between transmissions
 };
 
 #endif  // SERIAL_COMM_NODE_HPP
