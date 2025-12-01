@@ -12,7 +12,6 @@
 
   <depend>rclcpp</depend>
   <depend>std_msgs</depend>
-  <depend>std_srvs</depend>
   <depend>path_manager</depend>
   <depend>visualization_msgs</depend>
 

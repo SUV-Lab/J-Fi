@@ -2,8 +2,7 @@
 #include <functional>
 
 SerialCommNode::SerialCommNode()
-: Node("serial_comm_node"),
-  formation_cmd_send_enabled_(false)
+: Node("serial_comm_node")
 {
   // Declare and get parameters.
   this->declare_parameter<std::string>("port_name", "/dev/ttyUSB0");
@@ -83,25 +82,35 @@ SerialCommNode::SerialCommNode()
       topic_prefix + "/j_fi/broadcast_traj_recv", qos);
 
   // FormationCommand subscription (send to serial)
-  // ONLY Commander drone (system_id == 1) can enable this via service
+  // ONLY Commander drone (system_id == 1) subscribes to Commander's topic
   if (system_id_ == 1) {
-    // Create service to enable/disable FormationCommand sending
-    enable_formation_cmd_send_service_ = this->create_service<std_srvs::srv::SetBool>(
-        "enable_formation_cmd_send",
-        std::bind(&SerialCommNode::enableFormationCommandSendCallback, this,
-                  std::placeholders::_1, std::placeholders::_2));
-
-    RCLCPP_INFO(this->get_logger(),
-                "Commander mode: Service 'enable_formation_cmd_send' available (currently disabled)");
+    sub_to_serial_formation_cmd_ = this->create_subscription<path_manager::msg::FormationCommand>(
+        "formation_command", qos,
+        [this](const path_manager::msg::FormationCommand::SharedPtr msg)
+        {
+          auto serialized_data = jfi_comm_.serialize_message(msg);
+          if (!serialized_data.empty())
+          {
+            jfi_comm_.send(TID_FORMATION_COMMAND, serialized_data);
+            RCLCPP_INFO(this->get_logger(), "Sent FormationCommand via serial: seq=%d, mission=%s->%s",
+                        msg->sequence, msg->current_mission_id.c_str(), msg->next_mission_id.c_str());
+          }
+          else
+          {
+            RCLCPP_WARN(this->get_logger(), "[SerialCommNode] Failed to serialize FormationCommand message.");
+          }
+        });
+    RCLCPP_INFO(this->get_logger(), "Commander mode: Subscribed to 'formation_command' for serial transmission");
   } else {
     RCLCPP_INFO(this->get_logger(),
-                "Follower mode (system_id=%d): FormationCommand send not available", system_id_);
+                "Follower mode (system_id=%d): Not subscribing to formation_command", system_id_);
   }
 
   // FormationCommand publisher (receive from serial)
   // ALL drones publish received FormationCommand from serial
+  // Use different topic name to avoid conflict with Commander's direct publish
   pub_from_serial_formation_cmd_ = this->create_publisher<path_manager::msg::FormationCommand>(
-      "formation_command", qos);
+      "formation_command_serial", qos);
 }
 
 SerialCommNode::~SerialCommNode()
@@ -192,48 +201,3 @@ void SerialCommNode::handleMessage(const int tid, const std::vector<uint8_t> & d
   }
 }
 
-void SerialCommNode::enableFormationCommandSendCallback(
-    const std::shared_ptr<std_srvs::srv::SetBool::Request> request,
-    std::shared_ptr<std_srvs::srv::SetBool::Response> response)
-{
-  if (request->data && !formation_cmd_send_enabled_) {
-    // Enable: create subscription
-    rmw_qos_profile_t qos_profile = rmw_qos_profile_sensor_data;
-    auto qos = rclcpp::QoS(rclcpp::QoSInitialization(qos_profile.history, 5), qos_profile);
-
-    sub_to_serial_formation_cmd_ = this->create_subscription<path_manager::msg::FormationCommand>(
-        "formation_command", qos,
-        [this](const path_manager::msg::FormationCommand::SharedPtr msg)
-        {
-          auto serialized_data = jfi_comm_.serialize_message(msg);
-          if (!serialized_data.empty())
-          {
-            jfi_comm_.send(TID_FORMATION_COMMAND, serialized_data);
-            RCLCPP_INFO(this->get_logger(), "Sent FormationCommand via serial: seq=%d, mission=%s->%s",
-                        msg->sequence, msg->current_mission_id.c_str(), msg->next_mission_id.c_str());
-          }
-          else
-          {
-            RCLCPP_WARN(this->get_logger(), "[SerialCommNode] Failed to serialize FormationCommand message.");
-          }
-        });
-
-    formation_cmd_send_enabled_ = true;
-    response->success = true;
-    response->message = "FormationCommand send enabled";
-    RCLCPP_INFO(this->get_logger(), "FormationCommand send ENABLED via service");
-
-  } else if (!request->data && formation_cmd_send_enabled_) {
-    // Disable: reset subscription
-    sub_to_serial_formation_cmd_.reset();
-    formation_cmd_send_enabled_ = false;
-    response->success = true;
-    response->message = "FormationCommand send disabled";
-    RCLCPP_INFO(this->get_logger(), "FormationCommand send DISABLED via service");
-
-  } else {
-    // Already in requested state
-    response->success = true;
-    response->message = request->data ? "Already enabled" : "Already disabled";
-  }
-}
