@@ -106,22 +106,22 @@ SerialCommNode::SerialCommNode()
             }
         };
 
-        std::vector<uint8_t> coef_x_quantized, coef_y_quantized, duration_quantized;
-        float coef_x_min, coef_x_max, coef_y_min, coef_y_max, duration_min, duration_max;
+        std::vector<uint8_t> coef_x_quantized, coef_y_quantized;
+        float coef_x_min, coef_x_max, coef_y_min, coef_y_max;
 
         quantize_array(modified_msg->coef_x, coef_x_quantized, coef_x_min, coef_x_max);
         quantize_array(modified_msg->coef_y, coef_y_quantized, coef_y_min, coef_y_max);
-        quantize_array(modified_msg->duration, duration_quantized, duration_min, duration_max);
 
         // Pack compressed data into byte array
-        // Format: [header(14)] [coef_x_quantized] [coef_y_quantized] [duration_quantized]
+        // Format: [header(14)] [coef_x_quantized] [coef_y_quantized] [duration_floats]
         // Header: drone_id(2) traj_id(4) start_time(8) order(1)
         //         coef_x: size(2) min(4) max(4)
         //         coef_y: size(2) min(4) max(4)
-        //         duration: size(2) min(4) max(4)
+        //         duration: size(2) [no quantization - raw floats]
 
-        size_t header_size = 2 + 4 + 8 + 1 + (2+4+4)*3;  // 45 bytes
-        size_t total_size = header_size + coef_x_quantized.size() + coef_y_quantized.size() + duration_quantized.size();
+        size_t header_size = 2 + 4 + 8 + 1 + (2+4+4)*2 + 2;  // 35 bytes (removed one min/max pair, added size field)
+        size_t duration_bytes = modified_msg->duration.size() * sizeof(float);
+        size_t total_size = header_size + coef_x_quantized.size() + coef_y_quantized.size() + duration_bytes;
 
         std::vector<uint8_t> serialized_data(total_size);
         size_t offset = 0;
@@ -159,20 +159,18 @@ SerialCommNode::SerialCommNode()
         *reinterpret_cast<float*>(&serialized_data[offset]) = coef_y_max;
         offset += 4;
 
-        // duration metadata
-        *reinterpret_cast<uint16_t*>(&serialized_data[offset]) = static_cast<uint16_t>(duration_quantized.size());
+        // duration size (no quantization, send as raw floats)
+        *reinterpret_cast<uint16_t*>(&serialized_data[offset]) = static_cast<uint16_t>(modified_msg->duration.size());
         offset += 2;
-        *reinterpret_cast<float*>(&serialized_data[offset]) = duration_min;
-        offset += 4;
-        *reinterpret_cast<float*>(&serialized_data[offset]) = duration_max;
-        offset += 4;
 
         // Copy quantized data
         std::memcpy(&serialized_data[offset], coef_x_quantized.data(), coef_x_quantized.size());
         offset += coef_x_quantized.size();
         std::memcpy(&serialized_data[offset], coef_y_quantized.data(), coef_y_quantized.size());
         offset += coef_y_quantized.size();
-        std::memcpy(&serialized_data[offset], duration_quantized.data(), duration_quantized.size());
+
+        // Copy duration as raw floats
+        std::memcpy(&serialized_data[offset], modified_msg->duration.data(), duration_bytes);
 
         // ===== End Quantization Compression =====
         if (!serialized_data.empty())
@@ -248,7 +246,7 @@ void SerialCommNode::handleMessage(const int tid, const std::vector<uint8_t> & d
         // ===== Quantization Decompression =====
         // Decompress uint8 quantized data back to float32 arrays
 
-        if (data.size() < 45) {
+        if (data.size() < 35) {
           RCLCPP_ERROR(this->get_logger(), "Received PolyTraj data too small: %zu bytes", data.size());
           break;
         }
@@ -286,13 +284,9 @@ void SerialCommNode::handleMessage(const int tid, const std::vector<uint8_t> & d
         float coef_y_max = *reinterpret_cast<const float*>(&data[offset]);
         offset += 4;
 
-        // Parse duration metadata
+        // Parse duration size (no quantization)
         uint16_t duration_size = *reinterpret_cast<const uint16_t*>(&data[offset]);
         offset += 2;
-        float duration_min = *reinterpret_cast<const float*>(&data[offset]);
-        offset += 4;
-        float duration_max = *reinterpret_cast<const float*>(&data[offset]);
-        offset += 4;
 
         // Dequantize arrays
         auto dequantize_array = [](const uint8_t* quantized, size_t size, float min_val, float max_val, std::vector<float>& output) {
@@ -315,7 +309,9 @@ void SerialCommNode::handleMessage(const int tid, const std::vector<uint8_t> & d
         dequantize_array(&data[offset], coef_y_size, coef_y_min, coef_y_max, polytraj_msg.coef_y);
         offset += coef_y_size;
 
-        dequantize_array(&data[offset], duration_size, duration_min, duration_max, polytraj_msg.duration);
+        // Parse duration as raw floats (no dequantization needed)
+        polytraj_msg.duration.resize(duration_size);
+        std::memcpy(polytraj_msg.duration.data(), &data[offset], duration_size * sizeof(float));
 
         RCLCPP_INFO(this->get_logger(), "Received PolyTraj (quantized): drone_id=%d, coef_x=%zu, coef_y=%zu, duration=%zu, compressed_size=%zu bytes",
                     polytraj_msg.drone_id, polytraj_msg.coef_x.size(), polytraj_msg.coef_y.size(), polytraj_msg.duration.size(), data.size());
