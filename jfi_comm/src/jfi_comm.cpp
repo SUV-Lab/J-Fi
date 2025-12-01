@@ -96,22 +96,68 @@ void JFiComm::recvMavLoop()
               full_compressed = std::move(chunk);
           } else {
               std::lock_guard<std::mutex> lock(chunk_mutex_);
-              auto& chunks = chunk_buffers_[jfi_msg_.tid];
-              if (chunks.size() < total) chunks.resize(total);
-              chunks[seq] = std::move(chunk);
-              bool complete = true;
-              for (const auto& c : chunks) {
-                  if (c.empty()) {
-                      complete = false;
-                      break;
+              auto& buffer = chunk_buffers_[jfi_msg_.tid];
+              auto now = std::chrono::steady_clock::now();
+
+              // Check for stale chunks (timeout: 500ms)
+              if (!buffer.chunks.empty()) {
+                  auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - buffer.last_update).count();
+                  if (elapsed > 500) {
+                      RCLCPP_WARN(rclcpp::get_logger("JFiComm"),
+                                  "TID=%d: Chunk timeout (%ld ms). Discarding stale chunks.",
+                                  jfi_msg_.tid, elapsed);
+                      buffer.chunks.clear();
+                      buffer.expected_total = 0;
                   }
               }
+
+              // Check if this is a new chunked message
+              if (seq == 0) {
+                  if (!buffer.chunks.empty()) {
+                      RCLCPP_WARN(rclcpp::get_logger("JFiComm"),
+                                  "TID=%d: New chunked message started (seq=0, total=%d) while previous incomplete chunks exist. Discarding old chunks.",
+                                  jfi_msg_.tid, total);
+                  }
+                  buffer.chunks.clear();
+                  buffer.expected_total = total;
+              }
+
+              // Check if total count changed (indicates new message started mid-reception)
+              if (buffer.expected_total != 0 && buffer.expected_total != total) {
+                  RCLCPP_WARN(rclcpp::get_logger("JFiComm"),
+                              "TID=%d: Total count mismatch (expected %d, got %d). New message started. Discarding old chunks.",
+                              jfi_msg_.tid, buffer.expected_total, total);
+                  buffer.chunks.clear();
+                  buffer.expected_total = total;
+              }
+
+              if (buffer.chunks.size() < total) buffer.chunks.resize(total);
+              buffer.chunks[seq] = std::move(chunk);
+              buffer.last_update = now;
+              if (buffer.expected_total == 0) buffer.expected_total = total;
+
+              // Count received chunks
+              size_t received_count = 0;
+              for (const auto& c : buffer.chunks) {
+                  if (!c.empty()) received_count++;
+              }
+
+              RCLCPP_DEBUG(rclcpp::get_logger("JFiComm"),
+                          "TID=%d: Received chunk %d/%d (total received: %zu/%d)",
+                          jfi_msg_.tid, seq, total, received_count, total);
+
+              bool complete = (received_count == total);
               if (!complete) continue;
 
-              for (const auto& c : chunks) {
+              for (const auto& c : buffer.chunks) {
                   full_compressed.insert(full_compressed.end(), c.begin(), c.end());
               }
-              chunks.clear();
+              buffer.chunks.clear();
+              buffer.expected_total = 0;
+
+              RCLCPP_DEBUG(rclcpp::get_logger("JFiComm"),
+                          "TID=%d: All chunks received, combined size=%zu",
+                          jfi_msg_.tid, full_compressed.size());
           }
 
           std::string decompressed_str;
@@ -247,6 +293,11 @@ void JFiComm::send(const uint8_t tid, const std::vector<uint8_t>& data) {
         writeData(std::vector<uint8_t>(buffer, buffer + len));
     } else {
         uint8_t total_chunks = static_cast<uint8_t>((compressed.size() + max_chunk - 1) / max_chunk);
+
+        RCLCPP_DEBUG(rclcpp::get_logger("JFiComm"),
+                    "TID=%d: Sending chunked message: total_chunks=%d, compressed_size=%zu",
+                    tid, total_chunks, compressed.size());
+
         size_t offset = 0;
         for (uint8_t seq = 0; seq < total_chunks; ++seq) {
             size_t chunk_size = std::min(max_chunk, compressed.size() - offset);
@@ -267,6 +318,10 @@ void JFiComm::send(const uint8_t tid, const std::vector<uint8_t>& data) {
             std::memset(buffer, 0, sizeof(buffer));
             size_t len = mavlink_msg_to_send_buffer(buffer, &mavlink_msg);
             writeData(std::vector<uint8_t>(buffer, buffer + len));
+
+            RCLCPP_DEBUG(rclcpp::get_logger("JFiComm"),
+                        "TID=%d: Sent chunk %d/%d, size=%zu",
+                        tid, seq, total_chunks, chunk_size);
 
             offset += chunk_size;
         }
