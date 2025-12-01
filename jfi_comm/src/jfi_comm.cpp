@@ -145,7 +145,7 @@ void JFiComm::recvMavLoop()
                   if (!c.empty()) received_count++;
               }
 
-              RCLCPP_DEBUG(rclcpp::get_logger("JFiComm"),
+              RCLCPP_INFO(rclcpp::get_logger("JFiComm"),
                           "SysID=%d TID=%d: Received chunk %d/%d (total received: %zu/%d)",
                           message.sysid, jfi_msg_.tid, seq, total, received_count, total);
 
@@ -158,7 +158,7 @@ void JFiComm::recvMavLoop()
               buffer.chunks.clear();
               buffer.expected_total = 0;
 
-              RCLCPP_DEBUG(rclcpp::get_logger("JFiComm"),
+              RCLCPP_INFO(rclcpp::get_logger("JFiComm"),
                           "SysID=%d TID=%d: All chunks received, combined size=%zu",
                           message.sysid, jfi_msg_.tid, full_compressed.size());
           }
@@ -322,9 +322,14 @@ void JFiComm::send(const uint8_t tid, const std::vector<uint8_t>& data) {
             size_t len = mavlink_msg_to_send_buffer(buffer, &mavlink_msg);
             writeData(std::vector<uint8_t>(buffer, buffer + len));
 
-            RCLCPP_DEBUG(rclcpp::get_logger("JFiComm"),
+            RCLCPP_INFO(rclcpp::get_logger("JFiComm"),
                         "TID=%d: Sent chunk %d/%d, size=%zu",
                         tid, seq, total_chunks, chunk_size);
+
+            // Small delay between chunks to prevent serial buffer overflow
+            if (seq < total_chunks - 1) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(5));
+            }
 
             offset += chunk_size;
         }
