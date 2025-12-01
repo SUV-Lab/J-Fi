@@ -5,6 +5,7 @@
 #include <rclcpp/rclcpp.hpp>
 
 #include <path_manager/msg/poly_traj.hpp>
+#include <path_manager/msg/formation_command.hpp>
 
 #include "jfi_comm.hpp"
 
@@ -22,7 +23,7 @@ class SerialCommNode : public rclcpp::Node
 public:
   enum TID{
     TID_POLY_TRAJ = 1,
-    // TID_VEHICLE_STATUS = 2
+    TID_FORMATION_COMMAND = 2
   };
 
 public:
@@ -50,6 +51,9 @@ private:
   // ROS subscriptions and publishers
   rclcpp::Subscription<path_manager::msg::PolyTraj>::SharedPtr sub_to_serial_poly_traj_;
   rclcpp::Publisher<path_manager::msg::PolyTraj>::SharedPtr pub_from_serial_poly_traj_;
+
+  rclcpp::Subscription<path_manager::msg::FormationCommand>::SharedPtr sub_to_serial_formation_cmd_;
+  rclcpp::Publisher<path_manager::msg::FormationCommand>::SharedPtr pub_from_serial_formation_cmd_;
 };
 
 #endif  // SERIAL_COMM_NODE_HPP

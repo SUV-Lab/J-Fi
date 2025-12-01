@@ -13,6 +13,7 @@
   <depend>rclcpp</depend>
   <depend>std_msgs</depend>
   <depend>path_manager</depend>
+  <depend>visualization_msgs</depend>
 
   <build_depend>libsnappy-dev</build_depend>
   <build_export_depend>libsnappy-dev</build_export_depend>

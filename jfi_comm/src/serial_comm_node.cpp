@@ -80,6 +80,28 @@ SerialCommNode::SerialCommNode()
   // Create publisher for incoming messages.
   pub_from_serial_poly_traj_ = this->create_publisher<path_manager::msg::PolyTraj>(
       topic_prefix + "/j_fi/broadcast_traj_recv", qos);
+
+  // FormationCommand subscription (send to serial)
+  sub_to_serial_formation_cmd_ = this->create_subscription<path_manager::msg::FormationCommand>(
+      "formation_command", qos,
+      [this](const path_manager::msg::FormationCommand::SharedPtr msg)
+      {
+        auto serialized_data = jfi_comm_.serialize_message(msg);
+        if (!serialized_data.empty())
+        {
+          jfi_comm_.send(TID_FORMATION_COMMAND, serialized_data);
+          RCLCPP_INFO(this->get_logger(), "Sent FormationCommand via serial: seq=%d, mission=%s->%s",
+                      msg->sequence, msg->current_mission_id.c_str(), msg->next_mission_id.c_str());
+        }
+        else
+        {
+          RCLCPP_WARN(this->get_logger(), "[SerialCommNode] Failed to serialize FormationCommand message.");
+        }
+      });
+
+  // FormationCommand publisher (receive from serial)
+  pub_from_serial_formation_cmd_ = this->create_publisher<path_manager::msg::FormationCommand>(
+      "formation_command", qos);
 }
 
 SerialCommNode::~SerialCommNode()
@@ -140,6 +162,27 @@ void SerialCommNode::handleMessage(const int tid, const std::vector<uint8_t> & d
         // RCLCPP_INFO(this->get_logger(), "Received and published TID_POLY_TRAJ message.");
       } catch (const std::exception & e) {
         // RCLCPP_ERROR(this->get_logger(), "[SerialCommNode] Failed to deserialize TID_POLY_TRAJ message: %s", e.what());
+      }
+    }
+    break;
+    case TID_FORMATION_COMMAND:
+    {
+      try {
+        path_manager::msg::FormationCommand formation_cmd_msg =
+            jfi_comm_.deserialize_message<path_manager::msg::FormationCommand>(data);
+
+        pub_from_serial_formation_cmd_->publish(formation_cmd_msg);
+
+        RCLCPP_INFO(this->get_logger(),
+                    "Received and published FormationCommand: seq=%d, mission=%s->%s, formation=%s, waypoints=%zu",
+                    formation_cmd_msg.sequence,
+                    formation_cmd_msg.current_mission_id.c_str(),
+                    formation_cmd_msg.next_mission_id.c_str(),
+                    formation_cmd_msg.formation_type.c_str(),
+                    formation_cmd_msg.waypoints.size());
+      } catch (const std::exception & e) {
+        RCLCPP_ERROR(this->get_logger(),
+                     "[SerialCommNode] Failed to deserialize TID_FORMATION_COMMAND message: %s", e.what());
       }
     }
     break;
