@@ -3,6 +3,7 @@
 
 #include <chrono>
 #include <rclcpp/rclcpp.hpp>
+#include <std_srvs/srv/set_bool.hpp>
 
 #include <path_manager/msg/poly_traj.hpp>
 #include <path_manager/msg/formation_command.hpp>
@@ -54,6 +55,15 @@ private:
 
   rclcpp::Subscription<path_manager::msg::FormationCommand>::SharedPtr sub_to_serial_formation_cmd_;
   rclcpp::Publisher<path_manager::msg::FormationCommand>::SharedPtr pub_from_serial_formation_cmd_;
+
+  // Service for dynamic subscription control
+  rclcpp::Service<std_srvs::srv::SetBool>::SharedPtr enable_formation_cmd_send_service_;
+  bool formation_cmd_send_enabled_;
+
+  // Service callback
+  void enableFormationCommandSendCallback(
+    const std::shared_ptr<std_srvs::srv::SetBool::Request> request,
+    std::shared_ptr<std_srvs::srv::SetBool::Response> response);
 };
 
 #endif  // SERIAL_COMM_NODE_HPP

@@ -31,6 +31,7 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
+find_package(std_srvs REQUIRED)
 find_package(path_manager REQUIRED)
 find_package(visualization_msgs REQUIRED)
 find_package(Snappy REQUIRED)
@@ -69,6 +70,7 @@ add_library(serial_comm_node_lib
 ament_target_dependencies(serial_comm_node_lib
   rclcpp
   std_msgs
+  std_srvs
   path_manager
   visualization_msgs
 )
@@ -84,6 +86,7 @@ add_executable(serial_comm_node
 ament_target_dependencies(serial_comm_node
   rclcpp
   std_msgs
+  std_srvs
   path_manager
   visualization_msgs
 )
