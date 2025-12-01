@@ -82,24 +82,31 @@ SerialCommNode::SerialCommNode()
       topic_prefix + "/j_fi/broadcast_traj_recv", qos);
 
   // FormationCommand subscription (send to serial)
-  sub_to_serial_formation_cmd_ = this->create_subscription<path_manager::msg::FormationCommand>(
-      "formation_command", qos,
-      [this](const path_manager::msg::FormationCommand::SharedPtr msg)
-      {
-        auto serialized_data = jfi_comm_.serialize_message(msg);
-        if (!serialized_data.empty())
+  // ONLY Commander drone (system_id == 1) subscribes to formation_command to prevent infinite loop
+  if (system_id_ == 1) {
+    sub_to_serial_formation_cmd_ = this->create_subscription<path_manager::msg::FormationCommand>(
+        "formation_command", qos,
+        [this](const path_manager::msg::FormationCommand::SharedPtr msg)
         {
-          jfi_comm_.send(TID_FORMATION_COMMAND, serialized_data);
-          RCLCPP_INFO(this->get_logger(), "Sent FormationCommand via serial: seq=%d, mission=%s->%s",
-                      msg->sequence, msg->current_mission_id.c_str(), msg->next_mission_id.c_str());
-        }
-        else
-        {
-          RCLCPP_WARN(this->get_logger(), "[SerialCommNode] Failed to serialize FormationCommand message.");
-        }
-      });
+          auto serialized_data = jfi_comm_.serialize_message(msg);
+          if (!serialized_data.empty())
+          {
+            jfi_comm_.send(TID_FORMATION_COMMAND, serialized_data);
+            RCLCPP_INFO(this->get_logger(), "Sent FormationCommand via serial: seq=%d, mission=%s->%s",
+                        msg->sequence, msg->current_mission_id.c_str(), msg->next_mission_id.c_str());
+          }
+          else
+          {
+            RCLCPP_WARN(this->get_logger(), "[SerialCommNode] Failed to serialize FormationCommand message.");
+          }
+        });
+    RCLCPP_INFO(this->get_logger(), "Commander mode: Subscribed to formation_command (will send via serial)");
+  } else {
+    RCLCPP_INFO(this->get_logger(), "Follower mode (system_id=%d): NOT subscribing to formation_command", system_id_);
+  }
 
   // FormationCommand publisher (receive from serial)
+  // ALL drones publish received FormationCommand from serial
   pub_from_serial_formation_cmd_ = this->create_publisher<path_manager::msg::FormationCommand>(
       "formation_command", qos);
 }
