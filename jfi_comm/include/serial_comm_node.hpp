@@ -54,6 +54,9 @@ private:
 
   rclcpp::Subscription<path_manager::msg::FormationCommand>::SharedPtr sub_to_serial_formation_cmd_;
   rclcpp::Publisher<path_manager::msg::FormationCommand>::SharedPtr pub_from_serial_formation_cmd_;
+
+  // Sequence tracking to prevent duplicate transmissions
+  int last_sent_formation_cmd_sequence_;
 };
 
 #endif  // SERIAL_COMM_NODE_HPP

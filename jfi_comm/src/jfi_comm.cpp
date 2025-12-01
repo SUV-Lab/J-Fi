@@ -116,7 +116,7 @@ void JFiComm::recvMavLoop()
 
           std::string decompressed_str;
           if (!snappy::Uncompress(reinterpret_cast<const char*>(full_compressed.data()), full_compressed.size(), &decompressed_str)) {
-              RCLCPP_ERROR(rclcpp::get_logger("JFiComm"), "Failed to decompress data");
+              RCLCPP_ERROR(rclcpp::get_logger("JFiComm"), "Failed to decompress data for TID=%d, compressed_size=%zu", jfi_msg_.tid, full_compressed.size());
               continue;
           }
           std::vector<uint8_t> decompressed(decompressed_str.begin(), decompressed_str.end());
@@ -222,6 +222,10 @@ void JFiComm::send(const uint8_t tid, const std::vector<uint8_t>& data) {
         RCLCPP_ERROR(rclcpp::get_logger("JFiComm"), "Failed to compress data, empty input");
         return;
     }
+
+    // Log compression info for debugging
+    RCLCPP_DEBUG(rclcpp::get_logger("JFiComm"), "Sending TID=%d: original_size=%zu, compressed_size=%zu",
+                 tid, data.size(), compressed.size());
 
     const size_t max_chunk = 248;
     if (compressed.size() <= max_chunk) {

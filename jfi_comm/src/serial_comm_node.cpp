@@ -2,7 +2,8 @@
 #include <functional>
 
 SerialCommNode::SerialCommNode()
-: Node("serial_comm_node")
+: Node("serial_comm_node"),
+  last_sent_formation_cmd_sequence_(-1)
 {
   // Declare and get parameters.
   this->declare_parameter<std::string>("port_name", "/dev/ttyUSB0");
@@ -88,12 +89,20 @@ SerialCommNode::SerialCommNode()
         "formation_command", qos,
         [this](const path_manager::msg::FormationCommand::SharedPtr msg)
         {
+          // Only send if sequence is new (prevent duplicate transmissions)
+          if (msg->sequence == last_sent_formation_cmd_sequence_) {
+            // Skip duplicate - Commander republishes at 1Hz for robustness
+            return;
+          }
+
           auto serialized_data = jfi_comm_.serialize_message(msg);
           if (!serialized_data.empty())
           {
             jfi_comm_.send(TID_FORMATION_COMMAND, serialized_data);
-            RCLCPP_INFO(this->get_logger(), "Sent FormationCommand via serial: seq=%d, mission=%s->%s",
-                        msg->sequence, msg->current_mission_id.c_str(), msg->next_mission_id.c_str());
+            last_sent_formation_cmd_sequence_ = msg->sequence;
+            RCLCPP_INFO(this->get_logger(), "Sent FormationCommand via serial: seq=%d, mission=%s->%s, formation=%s, waypoints=%zu, serialized_size=%zu",
+                        msg->sequence, msg->current_mission_id.c_str(), msg->next_mission_id.c_str(),
+                        msg->formation_type.c_str(), msg->waypoints.size(), serialized_data.size());
           }
           else
           {
