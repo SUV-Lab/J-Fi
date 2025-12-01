@@ -154,7 +154,14 @@ private:
   std::mutex fd_mutex_;
   std::function<void(const int tid, const std::vector<uint8_t> &)> receive_callback_;
   std::atomic<bool> running_;
-  std::unordered_map<uint8_t, std::vector<std::vector<uint8_t>>> chunk_buffers_;  // tid -> chunks
+
+  // Chunk buffer with metadata
+  struct ChunkBuffer {
+    std::vector<std::vector<uint8_t>> chunks;
+    std::chrono::steady_clock::time_point last_update;
+    uint8_t expected_total = 0;
+  };
+  std::unordered_map<uint8_t, ChunkBuffer> chunk_buffers_;  // tid -> chunk buffer
   std::mutex chunk_mutex_;
 
   // Parameterized MAVLink system and component IDs.
