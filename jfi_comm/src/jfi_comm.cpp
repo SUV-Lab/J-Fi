@@ -91,12 +91,15 @@ void JFiComm::recvMavLoop()
           uint8_t total = payload[1];
           std::vector<uint8_t> chunk(payload.begin() + 2, payload.end());
 
+          // Create unique key from (system_id, tid) to support multiple drones
+          uint16_t buffer_key = (static_cast<uint16_t>(message.sysid) << 8) | jfi_msg_.tid;
+
           std::vector<uint8_t> full_compressed;
           if (total == 1) {
               full_compressed = std::move(chunk);
           } else {
               std::lock_guard<std::mutex> lock(chunk_mutex_);
-              auto& buffer = chunk_buffers_[jfi_msg_.tid];
+              auto& buffer = chunk_buffers_[buffer_key];
               auto now = std::chrono::steady_clock::now();
 
               // Check for stale chunks (timeout: 500ms)
@@ -104,8 +107,8 @@ void JFiComm::recvMavLoop()
                   auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - buffer.last_update).count();
                   if (elapsed > 500) {
                       RCLCPP_WARN(rclcpp::get_logger("JFiComm"),
-                                  "TID=%d: Chunk timeout (%ld ms). Discarding stale chunks.",
-                                  jfi_msg_.tid, elapsed);
+                                  "SysID=%d TID=%d: Chunk timeout (%ld ms). Discarding stale chunks.",
+                                  message.sysid, jfi_msg_.tid, elapsed);
                       buffer.chunks.clear();
                       buffer.expected_total = 0;
                   }
@@ -115,8 +118,8 @@ void JFiComm::recvMavLoop()
               if (seq == 0) {
                   if (!buffer.chunks.empty()) {
                       RCLCPP_WARN(rclcpp::get_logger("JFiComm"),
-                                  "TID=%d: New chunked message started (seq=0, total=%d) while previous incomplete chunks exist. Discarding old chunks.",
-                                  jfi_msg_.tid, total);
+                                  "SysID=%d TID=%d: New chunked message started (seq=0, total=%d) while previous incomplete chunks exist. Discarding old chunks.",
+                                  message.sysid, jfi_msg_.tid, total);
                   }
                   buffer.chunks.clear();
                   buffer.expected_total = total;
@@ -125,8 +128,8 @@ void JFiComm::recvMavLoop()
               // Check if total count changed (indicates new message started mid-reception)
               if (buffer.expected_total != 0 && buffer.expected_total != total) {
                   RCLCPP_WARN(rclcpp::get_logger("JFiComm"),
-                              "TID=%d: Total count mismatch (expected %d, got %d). New message started. Discarding old chunks.",
-                              jfi_msg_.tid, buffer.expected_total, total);
+                              "SysID=%d TID=%d: Total count mismatch (expected %d, got %d). New message started. Discarding old chunks.",
+                              message.sysid, jfi_msg_.tid, buffer.expected_total, total);
                   buffer.chunks.clear();
                   buffer.expected_total = total;
               }
@@ -143,8 +146,8 @@ void JFiComm::recvMavLoop()
               }
 
               RCLCPP_DEBUG(rclcpp::get_logger("JFiComm"),
-                          "TID=%d: Received chunk %d/%d (total received: %zu/%d)",
-                          jfi_msg_.tid, seq, total, received_count, total);
+                          "SysID=%d TID=%d: Received chunk %d/%d (total received: %zu/%d)",
+                          message.sysid, jfi_msg_.tid, seq, total, received_count, total);
 
               bool complete = (received_count == total);
               if (!complete) continue;
@@ -156,8 +159,8 @@ void JFiComm::recvMavLoop()
               buffer.expected_total = 0;
 
               RCLCPP_DEBUG(rclcpp::get_logger("JFiComm"),
-                          "TID=%d: All chunks received, combined size=%zu",
-                          jfi_msg_.tid, full_compressed.size());
+                          "SysID=%d TID=%d: All chunks received, combined size=%zu",
+                          message.sysid, jfi_msg_.tid, full_compressed.size());
           }
 
           std::string decompressed_str;

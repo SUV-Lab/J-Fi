@@ -45,7 +45,7 @@ SerialCommNode::SerialCommNode()
         modified_msg->coef_z.clear();
 
         const float threshold = 1e-10f;
-        const int precision = 6;
+        const int precision = 3;  // Reduced from 6 to 3 (1mm accuracy -> 1cm accuracy) to reduce packet size
         const float scale = std::pow(10.0f, static_cast<float>(precision));
 
         for (auto& coef : modified_msg->coef_x) {
@@ -65,6 +65,16 @@ SerialCommNode::SerialCommNode()
         for (auto& dur : modified_msg->duration) {
             dur = std::round(dur * scale) / scale;
         }
+
+        // Remove trailing zeros from coef arrays to reduce packet size
+        // Polynomial coefficients often have many zeros at the end
+        auto remove_trailing_zeros = [](std::vector<float>& vec) {
+            while (!vec.empty() && std::abs(vec.back()) < 1e-9f) {
+                vec.pop_back();
+            }
+        };
+        remove_trailing_zeros(modified_msg->coef_x);
+        remove_trailing_zeros(modified_msg->coef_y);
 
         auto serialized_data = jfi_comm_.serialize_message(modified_msg);
         if (!serialized_data.empty())

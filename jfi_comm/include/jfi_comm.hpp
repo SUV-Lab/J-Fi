@@ -161,7 +161,9 @@ private:
     std::chrono::steady_clock::time_point last_update;
     uint8_t expected_total = 0;
   };
-  std::unordered_map<uint8_t, ChunkBuffer> chunk_buffers_;  // tid -> chunk buffer
+
+  // Chunk buffer key: (system_id << 8) | tid to support multiple drones sending same TID
+  std::unordered_map<uint16_t, ChunkBuffer> chunk_buffers_;  // (system_id, tid) -> chunk buffer
   std::mutex chunk_mutex_;
 
   // Parameterized MAVLink system and component IDs.
