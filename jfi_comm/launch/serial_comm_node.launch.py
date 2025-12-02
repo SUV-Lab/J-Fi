@@ -39,13 +39,13 @@ def generate_launch_description():
         ],
     )
 
-    evaluator_node = Node(
-        package="jfi_comm",
-        executable="evaluator_node",
-        name="evaluator",
-        output="screen",
-        parameters=[{"my_system_id": system_id}],
-    )
+    # evaluator_node = Node(
+    #     package="jfi_comm",
+    #     executable="evaluator_node",
+    #     name="evaluator",
+    #     output="screen",
+    #     parameters=[{"my_system_id": system_id}],
+    # )
 
     return LaunchDescription(
         [
@@ -54,6 +54,6 @@ def generate_launch_description():
             system_id_arg,
             # component_id_arg,
             serial_comm_node,
-            evaluator_node,
+            # evaluator_node,
         ]
     )

@@ -10,8 +10,8 @@
 using namespace std::chrono_literals;
 
 struct PeerStats {
-    uint32_t last_rx_app_seq;
-    bool last_rx_app_seq_known = false;
+    uint32_t last_rx_seq;
+    bool last_rx_seq_known = false;
     size_t packets_received_in_period = 0;
     size_t lost_packets_in_period = 0;
     std::vector<double> latency_buffer;
@@ -87,7 +87,7 @@ private:
     // total_tx_bytes_in_period_ += serialized_data.size();
 
     auto packet = std::make_unique<jfi_comm::msg::SwarmComm>();
-    packet->app_seq = tx_seq_++;
+    packet->seq = tx_seq_++;
     packet->tid = 2; // TID_TRAJECTORY
     packet->payload = serialized_data;
     publisher_->publish(std::move(packet));
@@ -101,13 +101,13 @@ private:
     PeerStats& stats = peer_statistics_[peer_id];
     stats.packets_received_in_period++;
 
-    if (stats.last_rx_app_seq_known) {
-      if (msg->app_seq > stats.last_rx_app_seq + 1) {
-            stats.lost_packets_in_period += (msg->app_seq - stats.last_rx_app_seq - 1);
+    if (stats.last_rx_seq_known) {
+      if (msg->seq > stats.last_rx_seq + 1) {
+            stats.lost_packets_in_period += (msg->seq - stats.last_rx_seq - 1);
         }
     }
-    stats.last_rx_app_seq = msg->app_seq;
-    stats.last_rx_app_seq_known = true;
+    stats.last_rx_seq = msg->seq;
+    stats.last_rx_seq_known = true;
 
     try {
       auto traj_msg = serializer_.deserialize(msg->payload);

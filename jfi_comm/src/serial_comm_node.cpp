@@ -30,9 +30,11 @@ SerialCommNode::SerialCommNode()
   }
 
   /* -------- 3. ROS Publishers (Serial -> ROS) ------------------------- */
+  // Publisher for incoming serial packets. Change the topic name and message type as needed.
   pub_packet_ = this->create_publisher<jfi_comm::msg::SwarmComm>("jfi_comm/out/packet", 10);
 
   /* -------- 4. ROS Subscribers (ROS -> Serial) ------------------------ */
+  // Subscriber for outgoing serial packets. Change the topic name and message type as needed.
   sub_packet_ = this->create_subscription<jfi_comm::msg::SwarmComm>(
     "jfi_comm/in/packet", 10,
     [this](const jfi_comm::msg::SwarmComm::SharedPtr msg) {
@@ -59,7 +61,7 @@ void SerialCommNode::handleMessage(uint8_t seq, uint8_t tid,
 
   packet_msg->header.stamp = this->get_clock()->now();
   packet_msg->src_sysid = src_sysid;
-  // packet_msg->seq = seq;
+  packet_msg->seq = seq;
   packet_msg->tid = tid;
   packet_msg->payload = data;
 
