@@ -195,6 +195,11 @@ private:
    */
   void cleanup_stale_fragments();
 
+  /**
+   * @brief Write statistics to log file
+   */
+  void write_statistics_to_file();
+
 private:
   int fd_;
   std::thread mav_recv_thread_;
@@ -205,12 +210,23 @@ private:
 
   uint8_t system_id_;
   uint8_t component_id_;
-  
+
   std::array<uint8_t, 512> rx_buffer_;
 
   static constexpr uint8_t FRAGMENT_TID = 255;
   std::atomic<uint16_t> next_transaction_id_{0};
   std::map<uint16_t, ReassemblyBuffer> reassembly_buffers_;
+
+  // Packet loss statistics
+  struct PacketStats {
+    uint64_t total_fragments_received = 0;
+    uint64_t duplicate_fragments = 0;
+    uint64_t timed_out_transactions = 0;
+    uint64_t successful_reassemblies = 0;
+    std::chrono::steady_clock::time_point start_time;
+  };
+  PacketStats stats_;
+  std::chrono::steady_clock::time_point last_log_time_;
 };
 
 #endif  // JFI_COMM_HPP

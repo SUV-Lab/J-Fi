@@ -9,6 +9,8 @@
 #include <thread>
 #include <vector>
 #include <cmath>
+#include <fstream>
+#include <iomanip>
 
 JFiComm::JFiComm()
 : fd_(-1),
@@ -17,7 +19,8 @@ JFiComm::JFiComm()
   component_id_(1),
   rx_buffer_{}
 {
-
+  stats_.start_time = std::chrono::steady_clock::now();
+  last_log_time_ = stats_.start_time;
 }
 
 JFiComm::~JFiComm()
@@ -287,21 +290,20 @@ void JFiComm::process_fragment(uint8_t seq, uint8_t src_sysid, const std::vector
 
     std::lock_guard<std::mutex> lock(reassembly_mutex_);
 
+    stats_.total_fragments_received++;
+
     auto it = reassembly_buffers_.find(header.transaction_id);
     if (it == reassembly_buffers_.end()) {
         // First fragment for this transaction
-        // RCLCPP_INFO(rclcpp::get_logger("JFiComm"),
-        //     "[process_fragment] New transaction %u. Expecting %d fragments for tid %d.",
-        //     header.transaction_id, header.fragment_count, header.original_tid);
         reassembly_buffers_.emplace(header.transaction_id, ReassemblyBuffer(header.original_tid, header.fragment_count));
         it = reassembly_buffers_.find(header.transaction_id);
     }
-    
+
     auto& buffer = it->second;
 
     // Check for inconsistencies
     if (buffer.original_tid != header.original_tid || buffer.fragment_count != header.fragment_count) {
-        RCLCPP_WARN(rclcpp::get_logger("JFiComm"), "[process_fragment] Fragment inconsistency for transaction %u. Dropping.", header.transaction_id);
+        RCLCPP_DEBUG(rclcpp::get_logger("JFiComm"), "[process_fragment] Fragment inconsistency for transaction %u. Dropping.", header.transaction_id);
         reassembly_buffers_.erase(it);
         return;
     }
@@ -316,7 +318,8 @@ void JFiComm::process_fragment(uint8_t seq, uint8_t src_sysid, const std::vector
         buffer.total_size += buffer.chunks[header.fragment_seq].size();
         buffer.last_update = std::chrono::steady_clock::now();
     } else {
-        RCLCPP_WARN(rclcpp::get_logger("JFiComm"), "[process_fragment] Duplicate or invalid fragment sequence %d for transaction %u.", header.fragment_seq, header.transaction_id);
+        stats_.duplicate_fragments++;
+        RCLCPP_DEBUG(rclcpp::get_logger("JFiComm"), "[process_fragment] Duplicate or invalid fragment sequence %d for transaction %u.", header.fragment_seq, header.transaction_id);
         return; // Ignore duplicate fragments
     }
 
@@ -331,8 +334,8 @@ void JFiComm::process_fragment(uint8_t seq, uint8_t src_sysid, const std::vector
     RCLCPP_DEBUG(rclcpp::get_logger("JFiComm"), "[process_fragment] Received fragment %zu/%d for transaction %u.", received_count, buffer.fragment_count, header.transaction_id);
 
     if (received_count == buffer.fragment_count) {
-        // RCLCPP_INFO(rclcpp::get_logger("JFiComm"), "[process_fragment] Reassembly complete for transaction %u.", header.transaction_id);
-        
+        stats_.successful_reassemblies++;
+
         std::vector<uint8_t> reassembled_data;
         reassembled_data.reserve(buffer.total_size);
         for(const auto& chunk : buffer.chunks) {
@@ -342,7 +345,7 @@ void JFiComm::process_fragment(uint8_t seq, uint8_t src_sysid, const std::vector
         if (receive_callback_) {
             receive_callback_(seq, buffer.original_tid, src_sysid, reassembled_data);
         }
-        
+
         reassembly_buffers_.erase(it);
     }
 }
@@ -355,10 +358,67 @@ void JFiComm::cleanup_stale_fragments()
     auto now = std::chrono::steady_clock::now();
     for (auto it = reassembly_buffers_.begin(); it != reassembly_buffers_.end(); ) {
         if (std::chrono::duration_cast<std::chrono::seconds>(now - it->second.last_update).count() > 10) {
-            RCLCPP_WARN(rclcpp::get_logger("JFiComm"), "[cleanup] Timing out incomplete transaction %u.", it->first);
+            stats_.timed_out_transactions++;
+            RCLCPP_DEBUG(rclcpp::get_logger("JFiComm"), "[cleanup] Timing out incomplete transaction %u.", it->first);
             it = reassembly_buffers_.erase(it);
         } else {
             ++it;
         }
+    }
+
+    // Write statistics to file every 30 seconds
+    if (std::chrono::duration_cast<std::chrono::seconds>(now - last_log_time_).count() >= 30) {
+        write_statistics_to_file();
+        last_log_time_ = now;
+    }
+}
+
+void JFiComm::write_statistics_to_file()
+{
+    auto now = std::chrono::steady_clock::now();
+    auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - stats_.start_time).count();
+
+    // Calculate packet loss rate
+    uint64_t total_expected = stats_.successful_reassemblies + stats_.timed_out_transactions;
+    double success_rate = total_expected > 0 ? (100.0 * stats_.successful_reassemblies / total_expected) : 100.0;
+    double loss_rate = 100.0 - success_rate;
+    double duplicate_rate = stats_.total_fragments_received > 0 ?
+        (100.0 * stats_.duplicate_fragments / stats_.total_fragments_received) : 0.0;
+
+    // Create log filename with system_id
+    std::string log_dir = "/tmp/jfi_comm_stats";
+    system(("mkdir -p " + log_dir).c_str());
+
+    std::string filename = log_dir + "/jfi_stats_sysid_" + std::to_string(system_id_) + ".log";
+    std::ofstream logfile(filename, std::ios::app);
+
+    if (logfile.is_open()) {
+        auto time_t_now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+        logfile << "=== JFI Communication Statistics (System ID: " << static_cast<int>(system_id_)
+                << ") ===" << std::endl;
+        logfile << "Timestamp: " << std::put_time(std::localtime(&time_t_now), "%Y-%m-%d %H:%M:%S") << std::endl;
+        logfile << "Elapsed time: " << elapsed << " seconds" << std::endl;
+        logfile << std::endl;
+
+        logfile << "Fragment Statistics:" << std::endl;
+        logfile << "  Total fragments received: " << stats_.total_fragments_received << std::endl;
+        logfile << "  Duplicate fragments: " << stats_.duplicate_fragments
+                << " (" << std::fixed << std::setprecision(2) << duplicate_rate << "%)" << std::endl;
+        logfile << std::endl;
+
+        logfile << "Transaction Statistics:" << std::endl;
+        logfile << "  Successful reassemblies: " << stats_.successful_reassemblies << std::endl;
+        logfile << "  Timed out transactions: " << stats_.timed_out_transactions << std::endl;
+        logfile << "  Success rate: " << std::fixed << std::setprecision(2) << success_rate << "%" << std::endl;
+        logfile << "  Packet loss rate: " << std::fixed << std::setprecision(2) << loss_rate << "%" << std::endl;
+        logfile << std::endl;
+        logfile << "---" << std::endl;
+        logfile << std::endl;
+
+        logfile.close();
+
+        RCLCPP_INFO(rclcpp::get_logger("JFiComm"),
+            "[Stats] Success: %.2f%%, Loss: %.2f%%, Duplicates: %.2f%% | File: %s",
+            success_rate, loss_rate, duplicate_rate, filename.c_str());
     }
 }
