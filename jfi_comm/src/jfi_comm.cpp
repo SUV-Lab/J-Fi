@@ -385,8 +385,8 @@ void JFiComm::write_statistics_to_file()
     double duplicate_rate = stats_.total_fragments_received > 0 ?
         (100.0 * stats_.duplicate_fragments / stats_.total_fragments_received) : 0.0;
 
-    // Create log filename with system_id
-    std::string log_dir = "/home/lim/workspace/ros_ws/swarm-formation/logs/runtime/jfi_stats";
+    // Create log filename with system_id (relative to workspace root)
+    std::string log_dir = "logs/runtime/jfi_stats";
     system(("mkdir -p " + log_dir).c_str());
 
     std::string filename = log_dir + "/jfi_stats_sysid_" + std::to_string(system_id_) + ".log";
