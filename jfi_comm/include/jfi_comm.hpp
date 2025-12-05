@@ -223,6 +223,12 @@ private:
     uint64_t duplicate_fragments = 0;
     uint64_t timed_out_transactions = 0;
     uint64_t successful_reassemblies = 0;
+
+    // MAVLink sequence-based packet loss tracking (most accurate)
+    std::map<uint8_t, uint8_t> last_seq_by_sysid;  // sysid -> last received seq
+    uint64_t mavlink_packets_received = 0;
+    uint64_t mavlink_packets_lost = 0;
+
     std::chrono::steady_clock::time_point start_time;
   };
   PacketStats stats_;

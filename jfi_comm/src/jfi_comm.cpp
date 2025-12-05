@@ -261,6 +261,37 @@ void JFiComm::recvMavLoop()
 
           std::vector<uint8_t> data(jfi_msg.data, jfi_msg.data + jfi_msg.len);
           uint8_t src_sysid = message.sysid;
+          uint8_t current_seq = message.seq;
+
+          // MAVLink sequence-based packet loss detection
+          {
+            std::lock_guard<std::mutex> lock(reassembly_mutex_);
+            stats_.mavlink_packets_received++;
+
+            auto it = stats_.last_seq_by_sysid.find(src_sysid);
+            if (it != stats_.last_seq_by_sysid.end()) {
+              uint8_t last_seq = it->second;
+              uint8_t expected_seq = (last_seq + 1) & 0xFF;  // 0-255 wrapping
+
+              if (current_seq != expected_seq) {
+                // Calculate lost packets (considering wrapping)
+                uint8_t lost;
+                if (current_seq > expected_seq) {
+                  lost = current_seq - expected_seq;
+                } else {
+                  // Wrapping occurred: e.g., last=254, current=2 → lost=4 (255,0,1)
+                  lost = (256 - expected_seq) + current_seq;
+                }
+
+                stats_.mavlink_packets_lost += lost;
+
+                RCLCPP_WARN(rclcpp::get_logger("JFiComm"),
+                  "[MAVLink Loss] sysid=%d: expected seq=%d, got=%d, lost=%d packets",
+                  src_sysid, expected_seq, current_seq, lost);
+              }
+            }
+            stats_.last_seq_by_sysid[src_sysid] = current_seq;
+          }
 
           if (jfi_msg.tid == FRAGMENT_TID) {
             process_fragment(message.seq, src_sysid, data);
@@ -378,10 +409,17 @@ void JFiComm::write_statistics_to_file()
     auto now = std::chrono::steady_clock::now();
     auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - stats_.start_time).count();
 
-    // Calculate packet loss rate
-    uint64_t total_expected = stats_.successful_reassemblies + stats_.timed_out_transactions;
-    double success_rate = total_expected > 0 ? (100.0 * stats_.successful_reassemblies / total_expected) : 100.0;
-    double loss_rate = 100.0 - success_rate;
+    // MAVLink packet-level statistics (MOST ACCURATE - Physical Layer)
+    uint64_t total_mavlink_packets = stats_.mavlink_packets_received + stats_.mavlink_packets_lost;
+    double mavlink_loss_rate = total_mavlink_packets > 0 ?
+        (100.0 * stats_.mavlink_packets_lost / total_mavlink_packets) : 0.0;
+
+    // Transaction-level statistics (Message Completion Rate - Application Layer)
+    uint64_t total_transactions = stats_.successful_reassemblies + stats_.timed_out_transactions;
+    double transaction_success_rate = total_transactions > 0 ?
+        (100.0 * stats_.successful_reassemblies / total_transactions) : 100.0;
+
+    // Fragment statistics
     double duplicate_rate = stats_.total_fragments_received > 0 ?
         (100.0 * stats_.duplicate_fragments / stats_.total_fragments_received) : 0.0;
 
@@ -400,17 +438,28 @@ void JFiComm::write_statistics_to_file()
         logfile << "Elapsed time: " << elapsed << " seconds" << std::endl;
         logfile << std::endl;
 
-        logfile << "Fragment Statistics:" << std::endl;
+        // PRIMARY METRIC: MAVLink Packet Loss (Physical Layer)
+        logfile << "=== MAVLink Packet Statistics (Physical Layer - MOST ACCURATE) ===" << std::endl;
+        logfile << "  Total packets received: " << stats_.mavlink_packets_received << std::endl;
+        logfile << "  Packets lost (by seq): " << stats_.mavlink_packets_lost << std::endl;
+        logfile << "  Total packets expected: " << total_mavlink_packets << std::endl;
+        logfile << "  PACKET LOSS RATE: " << std::fixed << std::setprecision(2)
+                << mavlink_loss_rate << "%" << std::endl;
+        logfile << std::endl;
+
+        // SECONDARY METRICS
+        logfile << "=== Fragment Statistics ===" << std::endl;
         logfile << "  Total fragments received: " << stats_.total_fragments_received << std::endl;
         logfile << "  Duplicate fragments: " << stats_.duplicate_fragments
                 << " (" << std::fixed << std::setprecision(2) << duplicate_rate << "%)" << std::endl;
         logfile << std::endl;
 
-        logfile << "Transaction Statistics:" << std::endl;
+        logfile << "=== Transaction Statistics (Message Completion Rate - Application Layer) ===" << std::endl;
         logfile << "  Successful reassemblies: " << stats_.successful_reassemblies << std::endl;
         logfile << "  Timed out transactions: " << stats_.timed_out_transactions << std::endl;
-        logfile << "  Success rate: " << std::fixed << std::setprecision(2) << success_rate << "%" << std::endl;
-        logfile << "  Packet loss rate: " << std::fixed << std::setprecision(2) << loss_rate << "%" << std::endl;
+        logfile << "  Total transactions: " << total_transactions << std::endl;
+        logfile << "  Message completion rate: " << std::fixed << std::setprecision(2)
+                << transaction_success_rate << "%" << std::endl;
         logfile << std::endl;
         logfile << "---" << std::endl;
         logfile << std::endl;
@@ -418,7 +467,7 @@ void JFiComm::write_statistics_to_file()
         logfile.close();
 
         RCLCPP_INFO(rclcpp::get_logger("JFiComm"),
-            "[Stats] Success: %.2f%%, Loss: %.2f%%, Duplicates: %.2f%% | File: %s",
-            success_rate, loss_rate, duplicate_rate, filename.c_str());
+            "[Stats] MAVLink Loss: %.2f%% | Msg Completion: %.2f%% | Duplicates: %.2f%% | File: %s",
+            mavlink_loss_rate, transaction_success_rate, duplicate_rate, filename.c_str());
     }
 }
